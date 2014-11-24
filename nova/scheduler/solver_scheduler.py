@@ -49,6 +49,44 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         self.hosts_solver = importutils.import_object(
                 CONF.solver_scheduler.scheduler_host_solver)
 
+    def _schedule(self, context, request_spec, filter_properties,
+                  instance_uuids=None):
+        """Returns a list of hosts that meet the required specs,
+        ordered by their fitness.
+        """
+        elevated = context.elevated()
+        instance_properties = request_spec['instance_properties']
+        instance_type = request_spec.get("instance_type", None)
+
+        update_group_hosts = self._setup_instance_group(context,
+                filter_properties)
+
+        config_options = self._get_configuration_options()
+
+        # check retry policy.  Rather ugly use of instance_uuids[0]...
+        # but if we've exceeded max retries... then we really only
+        # have a single instance.
+        properties = instance_properties.copy()
+        if instance_uuids:
+            properties['uuid'] = instance_uuids[0]
+        self._populate_retry(filter_properties, properties)
+
+        filter_properties.update({'context': context,
+                                  'request_spec': request_spec,
+                                  'config_options': config_options,
+                                  'instance_type': instance_type})
+
+        self.populate_filter_properties(request_spec,
+                                        filter_properties)
+
+        # Note: Moving the host selection logic to a new method so that
+        # the subclasses can override the behavior.
+        return self._get_final_host_list(elevated, request_spec,
+                                         filter_properties,
+                                         instance_properties,
+                                         update_group_hosts,
+                                         instance_uuids)
+
     def _get_final_host_list(self, context, request_spec, filter_properties,
                   instance_properties, update_group_hosts=False,
                   instance_uuids=None):
