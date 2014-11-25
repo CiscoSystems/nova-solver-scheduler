@@ -353,6 +353,10 @@ class SolverSchedulerHostManager(host_manager.HostManager):
     # Can be overridden in a subclass
     host_state_cls = HostState
 
+    def __init__(self, *args, **kwargs):
+        super(SolverSchedulerHostManager, self).__init__(*args, **kwargs)
+        self.compute_api = novacompute.API()
+
     def get_hosts_stripping_ignored_and_forced(self, hosts,
             filter_properties):
         """Filter hosts by stripping any ignored hosts and
