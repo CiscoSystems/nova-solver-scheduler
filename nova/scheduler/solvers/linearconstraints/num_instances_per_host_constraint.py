@@ -55,20 +55,19 @@ class NumInstancesPerHostConstraint(linearconstraints.BaseLinearConstraint):
         # The coefficient for each variable is 1 and constant in
         # each constraint is -(max_instances_per_host)
         supply = [self._get_usable_instance_num(hosts[i])
-                  for i in range(self.num_hosts)]
-        coefficient_matrix = [[1 for j in range(self.num_instances)] +
-                    [-supply[i]] for i in range(self.num_hosts)]
-        return coefficient_matrix
+        coefficient_vectors = [[1 for j in range(self.num_instances)] +
+                [-supply[i]] for i in range(self.num_hosts)]
+        return coefficient_vectors
 
     def get_variable_vectors(self, variables, hosts, instance_uuids,
                             request_spec, filter_properties):
         """Reorganize the variables."""
         # The variable_matrix[i,j] denotes the relationship between
         # host[i] and instance[j].
-        variable_matrix = []
-        variable_matrix = [[variables[i][j] for j in range(
+        variable_vectors = []
+        variable_vectors = [[variables[i][j] for j in range(
                     self.num_instances)] + [1] for i in range(self.num_hosts)]
-        return variable_matrix
+        return variable_vectors
 
     def get_operations(self, variables, hosts, instance_uuids, request_spec,
                         filter_properties):
