@@ -134,13 +134,11 @@ class HostState(object):
         # Generic metrics from compute nodes
         self.metrics = {}
 
-        # Network information
+        # For network solvers
         # NOTE(Xinyuan): currently for POC only, and have to work with Neurtron
         self.physnet_config = []
         self.networks = []
         self.aggregated_networks = []
-        # Instance information
-        self.instances = []
         self.projects = []
 
         self.host_aggregates_stats = {}
@@ -260,6 +258,10 @@ class HostState(object):
             os = key[12:]
             self.num_instances_by_os_type[os] = int(self.stats[key])
 
+        # Track the number of projects on host
+        self.projects = [k[9:] for k in self.stats.keys() if
+                        k.startswith("num_proj_") and int(self.ststs[k]) > 0]
+
         self.num_io_ops = int(self.stats.get('io_workload', 0))
 
         # update metrics
@@ -313,6 +315,11 @@ class HostState(object):
                 task_states.RESIZE_PREP, task_states.IMAGE_SNAPSHOT,
                 task_states.IMAGE_BACKUP]:
             self.num_io_ops += 1
+
+        # Track the number of projects
+        project_id = instance.get('project_id')
+        if project_id not in self.projects:
+            self.projects.append(project_id)
 
         # Track aggregate stats
         project_id = instance.get('project_id')
@@ -519,11 +526,10 @@ class SolverSchedulerHostManager(host_manager.HostManager):
             host_state.networks = host_network_states['vnet'].get(host, [])
             host_state.aggregated_networks = host_network_states[
                                                 'aggregated_networks'].get(host, [])
-            # update instance states
-            # NOTE(Xinyuan): the DB calls can be expensive, needs optimization.
-            host_instance_states = self._get_host_instance_states(context, host)
-            host_state.instances = host_instance_states['instances']
-            host_state.projects = host_instance_states['projects']
+            ## update instance states
+            ## NOTE(Xinyuan): the DB calls can be expensive, needs optimization.
+            #host_instance_states = self._get_host_instance_states(context, host)
+            #host_state.projects = host_instance_states['projects']
 
         # remove compute nodes from host_state_map if they are not active
         dead_nodes = set(self.host_state_map.keys()) - seen_nodes
@@ -537,24 +543,24 @@ class SolverSchedulerHostManager(host_manager.HostManager):
 
         return self.host_state_map.itervalues()
 
-    def _get_host_instance_states(self, context, host):
-        instance_states = {}
-
-        instances = set()
-        projects = set()
-
-        instance_list = self.compute_api.get_all(context, {'host': host,
-                                                            'deleted': False})
-        for inst in instance_list:
-            LOG.debug(_(inst))
-            instance_id = inst['uuid']
-            project_id = inst['project_id']
-            instances = instances.union([instance_id])
-            projects = projects.union([project_id])
-
-        host_instance_states = {'instances': list(instances),
-                                'projects': list(projects)}
-        return host_instance_states
+    #def _get_host_instance_states(self, context, host):
+    #    instance_states = {}
+    #
+    #    instances = set()
+    #    projects = set()
+    #
+    #    instance_list = self.compute_api.get_all(context, {'host': host,
+    #                                                        'deleted': False})
+    #    for inst in instance_list:
+    #        LOG.debug(_(inst))
+    #        instance_id = inst['uuid']
+    #        project_id = inst['project_id']
+    #        instances = instances.union([instance_id])
+    #        projects = projects.union([project_id])
+    #
+    #    host_instance_states = {'instances': list(instances),
+    #                            'projects': list(projects)}
+    #    return host_instance_states
 
     def _get_all_host_network_states(self, context):
         """Retrieve the physical and virtual network states of the hosts.
