@@ -23,13 +23,13 @@ import UserDict
 
 from oslo.config import cfg
 
-from nova.compute import api as novacompute
 from nova.compute import task_states
 from nova.compute import vm_states
 from nova import db
 from nova import exception
 from nova.network.neutronv2 import api as neutron_api
-from nova.objects import aggregate as aggr
+from nova.objects import instance as instance_obj
+from nova.objects import aggregate as aggregate_obj
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
@@ -134,13 +134,13 @@ class HostState(object):
         # Generic metrics from compute nodes
         self.metrics = {}
 
-        # For network solvers
+        # For network constraints
         # NOTE(Xinyuan): currently for POC only, and have to work with Neurtron
-        self.physnet_config = []
         self.networks = []
-        self.aggregated_networks = []
+        self.physnet_config = []
+        self.rack_networks = []
         self.projects = []
-
+        # For host aggregate constraints
         self.host_aggregates_stats = {}
 
         self.updated = None
@@ -174,6 +174,26 @@ class HostState(object):
                 self.metrics[name] = item
             else:
                 LOG.warn(_("Metric name unknown of %r") % item)
+
+    def _update_from_hosted_instances(self, compute):
+        service = compute['service']
+        if not service:
+            LOG.warn(_("No service for compute ID %s") % compute['id'])
+            return
+        host = service['host']
+        # retrieve instances for each hosts to extract needed infomation
+        # NOTE: ideally we should use get_by_host_and_node, but there's a bug 
+        # in the Icehouse release, that doesn't allow 'expected_attrs' here.
+        instances = instance_obj.InstanceList.get_by_host(context, host, 
+                    expected_attrs=['info_cache'])
+        # get hosted networks
+        # NOTE(Xinyuan): POC.
+        instance_networks = []
+        for inst in instances:
+            network_info = inst.get('info_cache', {}).get('network_info', [])
+            instance_networks.extend([vif['network']['id']
+                                        for vif in network_info])
+        self.networks = list(set(instance_networks))
 
     def update_from_compute_node(self, compute):
         """Update information about a host from its compute_node info."""
@@ -260,12 +280,15 @@ class HostState(object):
 
         # Track the number of projects on host
         self.projects = [k[9:] for k in self.stats.keys() if
-                        k.startswith("num_proj_") and int(self.ststs[k]) > 0]
+                        k.startswith("num_proj_") and int(self.stats[k]) > 0]
 
         self.num_io_ops = int(self.stats.get('io_workload', 0))
 
         # update metrics
         self._update_metrics_from_compute_node(compute)
+
+        # update information from hosted instances
+        self._update_from_hosted_instances(compute)
 
     def consume_from_instance(self, instance):
         """Incrementally update host state from an instance."""
@@ -362,7 +385,6 @@ class SolverSchedulerHostManager(host_manager.HostManager):
 
     def __init__(self, *args, **kwargs):
         super(SolverSchedulerHostManager, self).__init__(*args, **kwargs)
-        self.compute_api = novacompute.API()
 
     def get_hosts_stripping_ignored_and_forced(self, hosts,
             filter_properties):
@@ -453,9 +475,9 @@ class SolverSchedulerHostManager(host_manager.HostManager):
         return self.filter_handler.get_filtered_objects(filter_classes,
                 hosts, filter_properties, index)
 
-    def _update_aggregate_stats(self, context, host_state_map):
+    def _get_aggregate_stats(self, context, host_state_map):
         """Update certain stats for the aggregates of the hosts."""
-        aggregates = aggr.AggregateList.get_all(context)
+        aggregates = aggregate_obj.AggregateList.get_all(context)
         host_state_list_map = {}
 
         for (host, node) in host_state_map.keys():
@@ -486,15 +508,101 @@ class SolverSchedulerHostManager(host_manager.HostManager):
                 host_state.host_aggregates_stats[
                                   aggregate.name] = aggregate_stats
 
+    def _get_rack_states(self, context, host_state_map):
+        """Retrieve the physical and virtual network states of the hosts.
+        """
+        def _get_physnet_mappings():
+            """Get physical network topologies from a Neutron config file. 
+            This is a hard-coded function which only supports Cisco Nexus 
+            driver for Neutron ML2 plugin currently.
+            """
+            # NOTE(Xinyuan): This feature is for POC only!
+            # TODO(Xinyuan): further works are required in implementing 
+            # Neutron API extensions to get related information.
+            host2device_map = {}
+            device2host_map = {}
+            sections = {}
+
+            state_keys = host_state_map.keys()
+            hostname_list = [host for (host, node) in state_keys]
+
+            try:
+                physnet_config_parser = cfg.ConfigParser(
+                        CONF.physnet_config_file, sections)
+                physnet_config_parser.parse()
+            except:
+                LOG.warn(_("Physnet config file was not parsed properly."))
+            # Example section:
+            # [ml2_mech_cisco_nexus:1.1.1.1]
+            # compute1=1/1
+            # compute2=1/2
+            # ssh_port=22
+            # username=admin
+            # password=mySecretPassword
+            for parsed_item in sections.keys():
+                dev_id, sep, dev_ip = parsed_item.partition(':')
+                if dev_id.lower() == 'ml2_mech_cisco_nexus':
+                    for key, value in sections[parsed_item].items():
+                        if key in hostname_list:
+                            hostname = key
+                            portid = value[0]
+                            host2device_map.setdefault(hostname, [])
+                            host2device_map[hostname].append((dev_ip, portid))
+                            device2host_map.setdefault(dev_ip, [])
+                            device2host_map[dev_ip].append((hostname, portid))
+            return host2device_map, device2host_map
+
+        def _get_rack_networks(host_dev_map, dev_host_map, host_state_map):
+            """Aggregate the networks associated with a group of hosts in 
+            same physical groups (e.g. under same ToR switches...)
+            """
+            rack_networks = {}
+
+            if not dev_host_map or not host_dev_map:
+                return rack_networks
+
+            host_networks = {}
+            for state_key in host_state_map.keys():
+                (host, node) = state_key
+                host_state = host_state_map[statekey]
+                host_networks.setdefault(host, set())
+                host_networks[host].union(host_state.networks)
+
+            # aggregate hosted networks for each upper level device
+            dev_networks = {}
+            for dev_id in dev_host_map.keys():
+                current_dev_networks = set()
+                for (host_name, port_id) in dev_host_map[dev_id]:
+                    current_dev_networks = current_dev_networks.union(
+                            host_networks.get(host_name, []))
+                dev_networks[dev_id] = list(current_dev_networks)
+
+            # make aggregated networks list for each hosts
+            for host_name in host_dev_map.keys():
+                dev_list = list(set([dev_id for (dev_id, physport)
+                                    in host_dev_map.get(host_name, [])]))
+                host_rack_networks = {}
+                for dev in dev_list:
+                    host_rack_networks[dev] = dev_networks.get(dev, [])
+                rack_networks[host_name] = host_rack_networks
+
+            return rack_networks
+
+        host_dev_map, dev_host_map = _get_physnet_mappings()
+        rack_networks = _get_rack_networks(
+                                    host_dev_map, dev_host_map, host_networks)
+
+        for state_key in host_state_map.keys():
+            host_state = self.host_state_map.[state_key]
+            (host, node) = state_key
+            host_state.physnet_config = host_dev_map.get(host, [])
+            host_state.rack_networks = rack_networks.get(host, [])
+
     def get_all_host_states(self, context):
         """Returns a list of HostStates that represents all the hosts
         the HostManager knows about. Also, each of the consumable resources
         in HostState are pre-populated and adjusted based on data in the db.
         """
-
-        # get network states from neutron
-        # NOTE(Xinyaun): currently for POC only.
-        host_network_states = self._get_all_host_network_states(context)
 
         # Get resource usage across the available compute nodes:
         compute_nodes = db.compute_node_get_all(context)
@@ -520,16 +628,9 @@ class SolverSchedulerHostManager(host_manager.HostManager):
             host_state.update_from_compute_node(compute)
             seen_nodes.add(state_key)
 
-            # update network states
-            # NOTE(Xinyuan): currently for POC only.
-            host_state.physnet_config = host_network_states['physnet'].get(host, [])
-            host_state.networks = host_network_states['vnet'].get(host, [])
-            host_state.aggregated_networks = host_network_states[
-                                                'aggregated_networks'].get(host, [])
-            ## update instance states
-            ## NOTE(Xinyuan): the DB calls can be expensive, needs optimization.
-            #host_instance_states = self._get_host_instance_states(context, host)
-            #host_state.projects = host_instance_states['projects']
+            
+            host_networks[host] = host_state.networks
+        LOG.debug(_('host networks: %s') % host_networks)
 
         # remove compute nodes from host_state_map if they are not active
         dead_nodes = set(self.host_state_map.keys()) - seen_nodes
@@ -539,136 +640,9 @@ class SolverSchedulerHostManager(host_manager.HostManager):
                        "from scheduler") % {'host': host, 'node': node})
             del self.host_state_map[state_key]
 
-        self._update_aggregate_stats(context, self.host_state_map)
+        # get information from groups of hosts
+        # NOTE(Xinyaun): currently for POC only.
+        self._get_rack_states(context, self.host_state_map)
+        self._get_aggregate_stats(context, self.host_state_map)
 
         return self.host_state_map.itervalues()
-
-    #def _get_host_instance_states(self, context, host):
-    #    instance_states = {}
-    #
-    #    instances = set()
-    #    projects = set()
-    #
-    #    instance_list = self.compute_api.get_all(context, {'host': host,
-    #                                                        'deleted': False})
-    #    for inst in instance_list:
-    #        LOG.debug(_(inst))
-    #        instance_id = inst['uuid']
-    #        project_id = inst['project_id']
-    #        instances = instances.union([instance_id])
-    #        projects = projects.union([project_id])
-    #
-    #    host_instance_states = {'instances': list(instances),
-    #                            'projects': list(projects)}
-    #    return host_instance_states
-
-    def _get_all_host_network_states(self, context):
-        """Retrieve the physical and virtual network states of the hosts.
-        """
-        def _get_physnet_config():
-            """Get physical network topologies from a Neutron config file. 
-            This is a hard-coded function which only supports Cisco Nexus driver 
-            for Neutron ML2 plugin currently.
-            """
-            # NOTE(Xinyuan): This function is for POC only!
-            # TODO(Xinyuan): further works are required in implementing Neutron API
-            # extensions to get related information.
-            device_dict = {}
-            sections = {}
-            physnet_config_parser = cfg.ConfigParser(
-                    CONF.physnet_config_file, sections)
-            try:
-                physnet_config_parser.parse()
-            except IOError:
-                raise cfg.Error(_("Physnet config file was not parsed properly"))
-            # Example section:
-            # [ml2_mech_cisco_nexus:1.1.1.1]
-            # compute1=1/1
-            # compute2=1/2
-            # ssh_port=22
-            # username=admin
-            # password=mySecretPassword
-            for parsed_item in sections.keys():
-                dev_id, sep, dev_ip = parsed_item.partition(':')
-                if dev_id.lower() == 'ml2_mech_cisco_nexus':
-                    for key, value in sections[parsed_item].items():
-                        device_dict.setdefault(key, [])
-                        device_dict[key].append((dev_ip, value[0]))
-            return device_dict
-
-        def _get_hosted_networks(context):
-            """Get the virtual networks associated with each hosts. The 
-            networks are assciated with hosts through instances which are 
-            connected to networks on one side and hosted in hosts on the 
-            other side."""
-            hosted_networks = {}
-
-            # make a context that can get net-info as admin from Neutron
-            netadmin_ctxt = copy.copy(context)
-            netadmin_ctxt = netadmin_ctxt.elevated()
-            netadmin_ctxt.auth_token = None
-
-            neutron_client = neutron_api.API()
-            ports = neutron_client.list_ports(netadmin_ctxt).get('ports', [])
-            for port in ports:
-                #LOG.debug(_("ports are: %(port)s"), {'port': port})
-                port_host_id = port.get('binding:host_id', None)
-                port_network = port.get('network_id', None)
-                device_owner = port.get('device_owner', None)
-                if (port_host_id is None or port_network is None or
-                        device_owner != 'compute:nova'):
-                    continue
-                hosted_networks.setdefault(port_host_id, [])
-                if not port_network in hosted_networks[port_host_id]:
-                    hosted_networks[port_host_id].append(port_network)
-            return hosted_networks
-
-        def _get_aggregated_networks(physnet_config, hosted_networks):
-            """Aggregate the networks associated with a group of hosts in 
-            same physical groups (e.g. under same ToR switches...)
-            """
-            aggregated_networks = {}
-
-            if not physnet_config:
-                return aggregated_networks
-
-            # construct a mapping from upper level devices (e.g. switches) to
-            # the hosts
-            dev_host_map = {}
-            for host_id in physnet_config.keys():
-                dev_list = list(set([dev_id for (dev_id, physport)
-                                        in physnet_config.get(host_id, [])]))
-                for dev in dev_list:
-                    dev_host_map.setdefault(dev, [])
-                    dev_host_map[dev].append(host_id)
-
-            # aggregate hosted networks for each upper level device
-            dev_networks = {}
-            for dev_id in dev_host_map.keys():
-                current_dev_networks = set()
-                for host_id in dev_host_map[dev_id]:
-                    current_dev_networks = current_dev_networks.union(
-                            hosted_networks.get(host_id, []))
-                dev_networks[dev_id] = list(current_dev_networks)
-
-            # make aggregated networks list for each hosts
-            for host_id in physnet_config.keys():
-                dev_list = list(set([dev_id for (dev_id, physport)
-                                        in physnet_config.get(host_id, [])]))
-                host_aggr_networks = {}
-                for dev in dev_list:
-                    host_aggr_networks[dev] = dev_networks.get(dev, [])
-                aggregated_networks[host_id] = host_aggr_networks
-
-            return aggregated_networks
-
-        physnet_config = _get_physnet_config()
-        hosted_networks = _get_hosted_networks(context)
-        aggregated_networks = _get_aggregated_networks(
-                                    physnet_config, hosted_networks)
-
-        host_network_states = {'physnet': physnet_config,
-                'vnet': hosted_networks,
-                'aggregated_networks': aggregated_networks}
-
-        return host_network_states
