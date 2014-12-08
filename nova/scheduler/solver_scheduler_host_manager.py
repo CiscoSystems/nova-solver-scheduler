@@ -72,7 +72,7 @@ class HostState(host_manager.HostState):
         # For host aggregate constraints
         self.host_aggregates_stats = {}
 
-    def _update_from_hosted_instances(self, compute):
+    def update_from_hosted_instances(self, context, compute):
         service = compute['service']
         if not service:
             LOG.warn(_("No service for compute ID %s") % compute['id'])
@@ -183,9 +183,6 @@ class HostState(host_manager.HostState):
 
         # update metrics
         self._update_metrics_from_compute_node(compute)
-
-        # update information from hosted instances
-        self._update_from_hosted_instances(compute)
 
     def consume_from_instance(self, instance):
         """Incrementally update host state from an instance."""
@@ -461,7 +458,7 @@ class SolverSchedulerHostManager(host_manager.HostManager):
             host_networks = {}
             for state_key in host_state_map.keys():
                 (host, node) = state_key
-                host_state = host_state_map[statekey]
+                host_state = host_state_map[state_key]
                 host_networks.setdefault(host, set())
                 host_networks[host].union(host_state.networks)
 
@@ -487,10 +484,10 @@ class SolverSchedulerHostManager(host_manager.HostManager):
 
         host_dev_map, dev_host_map = _get_physnet_mappings()
         rack_networks = _get_rack_networks(
-                                    host_dev_map, dev_host_map, host_networks)
+                                    host_dev_map, dev_host_map, host_state_map)
 
         for state_key in host_state_map.keys():
-            host_state = self.host_state_map.[state_key]
+            host_state = self.host_state_map[state_key]
             (host, node) = state_key
             host_state.physnet_config = host_dev_map.get(host, [])
             host_state.rack_networks = rack_networks.get(host, [])
@@ -523,11 +520,9 @@ class SolverSchedulerHostManager(host_manager.HostManager):
                         service=dict(service.iteritems()))
                 self.host_state_map[state_key] = host_state
             host_state.update_from_compute_node(compute)
+            # update information from hosted instances
+            host_state.update_from_hosted_instances(context, compute)
             seen_nodes.add(state_key)
-
-            
-            host_networks[host] = host_state.networks
-        LOG.debug(_('host networks: %s') % host_networks)
 
         # remove compute nodes from host_state_map if they are not active
         dead_nodes = set(self.host_state_map.keys()) - seen_nodes
