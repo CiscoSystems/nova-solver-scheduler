@@ -54,126 +54,23 @@ CONF.register_opts(physnet_config_file_opts)
 
 LOG = logging.getLogger(__name__)
 
-class ReadOnlyDict(UserDict.IterableUserDict):
-    """A read-only dict."""
-    def __init__(self, source=None):
-        self.data = {}
-        self.update(source)
 
-    def __setitem__(self, key, item):
-        raise TypeError()
-
-    def __delitem__(self, key):
-        raise TypeError()
-
-    def clear(self):
-        raise TypeError()
-
-    def pop(self, key, *args):
-        raise TypeError()
-
-    def popitem(self):
-        raise TypeError()
-
-    def update(self, source=None):
-        if source is None:
-            return
-        elif isinstance(source, UserDict.UserDict):
-            self.data = source.data
-        elif isinstance(source, type({})):
-            self.data = source
-        else:
-            raise TypeError()
-
-
-# Representation of a single metric value from a compute node.
-MetricItem = collections.namedtuple(
-             'MetricItem', ['value', 'timestamp', 'source'])
-
-
-class HostState(object):
+class HostState(host_manager.HostState):
     """Mutable and immutable information tracked for a host.
     This is an attempt to remove the ad-hoc data structures
     previously used and lock down access.
     """
 
-    def __init__(self, host, node, capabilities=None, service=None):
-        self.host = host
-        self.nodename = node
-        self.update_capabilities(capabilities, service)
-
-        # Mutable available resources.
-        # These will change as resources are virtually "consumed".
-        self.total_usable_ram_mb = 0
-        self.total_usable_disk_gb = 0
-        self.disk_mb_used = 0
-        self.free_ram_mb = 0
-        self.free_disk_mb = 0
-        self.vcpus_total = 0
-        self.vcpus_used = 0
-
-        # Additional host information from the compute node stats:
-        self.vm_states = {}
-        self.task_states = {}
-        self.num_instances = 0
-        self.num_instances_by_project = {}
-        self.num_instances_by_os_type = {}
-        self.num_io_ops = 0
-
-        # Other information
-        self.host_ip = None
-        self.hypervisor_type = None
-        self.hypervisor_version = None
-        self.hypervisor_hostname = None
-        self.cpu_info = None
-        self.supported_instances = None
-
-        # Resource oversubscription values for the compute host:
-        self.limits = {}
-
-        # Generic metrics from compute nodes
-        self.metrics = {}
-
+    def __init__(self, *args, **kwargs):
+        super(HostState, self).__init__(*args, **kwargs)
+        self.projects = []
         # For network constraints
-        # NOTE(Xinyuan): currently for POC only, and have to work with Neurtron
+        # NOTE(Xinyuan): currently for POC only, and may require Neurtron
         self.networks = []
         self.physnet_config = []
         self.rack_networks = []
-        self.projects = []
         # For host aggregate constraints
         self.host_aggregates_stats = {}
-
-        self.updated = None
-
-    def update_capabilities(self, capabilities=None, service=None):
-        # Read-only capability dicts
-
-        if capabilities is None:
-            capabilities = {}
-        self.capabilities = ReadOnlyDict(capabilities)
-        if service is None:
-            service = {}
-        self.service = ReadOnlyDict(service)
-
-    def _update_metrics_from_compute_node(self, compute):
-        #NOTE(llu): The 'or []' is to avoid json decode failure of None
-        #           returned from compute.get, because DB schema allows
-        #           NULL in the metrics column
-        metrics = compute.get('metrics', []) or []
-        if metrics:
-            metrics = jsonutils.loads(metrics)
-        for metric in metrics:
-            # 'name', 'value', 'timestamp' and 'source' are all required
-            # to be valid keys, just let KeyError happen if any one of
-            # them is missing. But we also require 'name' to be True.
-            name = metric['name']
-            item = MetricItem(value=metric['value'],
-                              timestamp=metric['timestamp'],
-                              source=metric['source'])
-            if name:
-                self.metrics[name] = item
-            else:
-                LOG.warn(_("Metric name unknown of %r") % item)
 
     def _update_from_hosted_instances(self, compute):
         service = compute['service']
@@ -372,9 +269,9 @@ class HostState(object):
         #return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s" %
         #        (self.host, self.nodename, self.free_ram_mb, self.free_disk_mb,
         #         self.num_io_ops, self.num_instances))
-        return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s physnet_config:%s networks:%s aggregated_networks:%s projects:%s aggregate_stats:%s" %
+        return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s physnet_config:%s networks:%s rack_networks:%s projects:%s aggregate_stats:%s" %
                 (self.host, self.nodename, self.free_ram_mb, self.free_disk_mb,
-                 self.num_io_ops, self.num_instances, self.physnet_config, self.networks, self.aggregated_networks, self.projects, self.host_aggregates_stats))
+                 self.num_io_ops, self.num_instances, self.physnet_config, self.networks, self.rack_networks, self.projects, self.host_aggregates_stats))
 
 
 class SolverSchedulerHostManager(host_manager.HostManager):
