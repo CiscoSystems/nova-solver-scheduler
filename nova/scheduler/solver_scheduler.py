@@ -22,11 +22,13 @@ A default solver implementation that uses PULP is included.
 
 from oslo.config import cfg
 
+from nova import exception
+from nova.openstack.common.gettextutils import _
 from nova.openstack.common import importutils
+from nova.openstack.common import log as logging
+from nova.scheduler import driver
 from nova.scheduler import filter_scheduler
 from nova.scheduler import weights
-
-CONF = cfg.CONF
 
 solver_opts = [
     cfg.StrOpt('scheduler_host_solver',
@@ -36,8 +38,10 @@ solver_opts = [
               'the problem as a Linear Programming (LP) problem using PULP.'),
     ]
 
+CONF = cfg.CONF
 CONF.register_opts(solver_opts, group='solver_scheduler')
 
+LOG = logging.getLogger(__name__)
 
 class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
     """Scheduler that picks hosts using a Constraint Solver
@@ -48,6 +52,76 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         super(ConstraintSolverScheduler, self).__init__(*args, **kwargs)
         self.hosts_solver = importutils.import_object(
                 CONF.solver_scheduler.scheduler_host_solver)
+
+    def schedule_run_instance(self, context, request_spec,
+                              admin_password, injected_files,
+                              requested_networks, is_first_time,
+                              filter_properties, legacy_bdm_in_spec):
+        """This method is called from nova.compute.api to provision
+        an instance.  We first create a build plan (a list of WeightedHosts)
+        and then provision.
+
+        Returns a list of the instances created.
+        """
+        payload = dict(request_spec=request_spec)
+        self.notifier.info(context, 'scheduler.run_instance.start', payload)
+
+        instance_uuids = request_spec.get('instance_uuids')
+        LOG.info(_("Attempting to build %(num_instances)d instance(s) "
+                    "uuids: %(instance_uuids)s"),
+                  {'num_instances': len(instance_uuids),
+                   'instance_uuids': instance_uuids})
+        LOG.debug(_("Request Spec: %s") % request_spec)
+
+        # Stuff network requests into filter_properties
+        # NOTE (Xinyuan): currently for POC only.
+        filter_properties['requested_networks'] = requested_networks
+
+        weighed_hosts = self._schedule(context, request_spec,
+                                       filter_properties, instance_uuids)
+
+        # NOTE: Pop instance_uuids as individual creates do not need the
+        # set of uuids. Do not pop before here as the upper exception
+        # handler fo NoValidHost needs the uuid to set error state
+        instance_uuids = request_spec.pop('instance_uuids')
+
+        # NOTE(comstud): Make sure we do not pass this through.  It
+        # contains an instance of RpcContext that cannot be serialized.
+        filter_properties.pop('context', None)
+
+        for num, instance_uuid in enumerate(instance_uuids):
+            request_spec['instance_properties']['launch_index'] = num
+
+            try:
+                try:
+                    weighed_host = weighed_hosts.pop(0)
+                    LOG.info(_("Choosing host %(weighed_host)s "
+                                "for instance %(instance_uuid)s"),
+                              {'weighed_host': weighed_host,
+                               'instance_uuid': instance_uuid})
+                except IndexError:
+                    raise exception.NoValidHost(reason="")
+
+                self._provision_resource(context, weighed_host,
+                                         request_spec,
+                                         filter_properties,
+                                         requested_networks,
+                                         injected_files, admin_password,
+                                         is_first_time,
+                                         instance_uuid=instance_uuid,
+                                         legacy_bdm_in_spec=legacy_bdm_in_spec)
+            except Exception as ex:
+                # NOTE(vish): we don't reraise the exception here to make sure
+                #             that all instances in the request get set to
+                #             error properly
+                driver.handle_schedule_error(context, ex, instance_uuid,
+                                             request_spec)
+            # scrub retry host list in case we're scheduling multiple
+            # instances:
+            retry = filter_properties.get('retry', {})
+            retry['hosts'] = []
+
+        self.notifier.info(context, 'scheduler.run_instance.end', payload)
 
     def _schedule(self, context, request_spec, filter_properties,
                   instance_uuids=None):
@@ -110,6 +184,8 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
             host_instance_tuples_list = self.hosts_solver.host_solve(
                                              list_hosts, instance_uuids,
                                              request_spec, filter_properties)
+            LOG.debug(_("solver results: %(host_instance_list)s") %
+                        {"host_instance_list": host_instance_tuples_list})
             # NOTE(Yathi): Not using weights in solver scheduler,
             # but creating a list of WeighedHosts with a default weight of 1
             # to match the common method signatures of the

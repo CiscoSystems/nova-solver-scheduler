@@ -83,6 +83,7 @@ class HostsPulpSolver(scheduler_solver.BaseHostSolver):
             weight = float(self.cost_weights[cost_object.__class__.__name__])
             costs = [[costs[i][j] + weight * cost[i][j]
                     for j in range(num_instances)] for i in range(num_hosts)]
+        LOG.debug(_("cost matrix: %(costs)s") % {"costs": costs})
         prob += (pulp.lpSum([costs[i][j] * variables[i][j]
                     for i in range(num_hosts) for j in range(num_instances)]),
                     "Sum_of_Host_Instance_Scheduling_Costs")
@@ -91,6 +92,9 @@ class HostsPulpSolver(scheduler_solver.BaseHostSolver):
             coefficient_vectors = constraint_object.get_coefficient_vectors(
                                             variables, hosts, instance_uuids,
                                             request_spec, filter_properties)
+            LOG.debug(_("coeff vectors of %(name)s is: %(value)s") %
+                        {"name": constraint_object.__class__.__name__,
+                        "value": coefficient_vectors})
             variable_vectors = constraint_object.get_variable_vectors(
                                             variables, hosts, instance_uuids,
                                             request_spec, filter_properties)
@@ -114,7 +118,7 @@ class HostsPulpSolver(scheduler_solver.BaseHostSolver):
                 if v.name.startswith('IA'):
                     (host_id, instance_id) = v.name.lstrip('IA').lstrip(
                                                         '_').split('_')
-                    if v.varValue == 1.0:
+                    if v.varValue == 1:
                         host_instance_tuples_list.append(
                                             (host_id_dict[host_id],
                                             instance_id_dict[instance_id]))

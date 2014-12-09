@@ -263,12 +263,13 @@ class HostState(host_manager.HostState):
                                     'networks'].append(network_id)
 
     def __repr__(self):
-        #return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s" %
-        #        (self.host, self.nodename, self.free_ram_mb, self.free_disk_mb,
-        #         self.num_io_ops, self.num_instances))
-        return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s physnet_config:%s networks:%s rack_networks:%s projects:%s aggregate_stats:%s" %
+        return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s "\
+                "physnet_config:%s networks:%s rack_networks:%s "\
+                "projects:%s aggregate_stats:%s" %
                 (self.host, self.nodename, self.free_ram_mb, self.free_disk_mb,
-                 self.num_io_ops, self.num_instances, self.physnet_config, self.networks, self.rack_networks, self.projects, self.host_aggregates_stats))
+                 self.num_io_ops, self.num_instances, self.physnet_config,
+                 self.networks, self.rack_networks, self.projects,
+                 self.host_aggregates_stats))
 
 
 class SolverSchedulerHostManager(host_manager.HostManager):
@@ -459,8 +460,10 @@ class SolverSchedulerHostManager(host_manager.HostManager):
             for state_key in host_state_map.keys():
                 (host, node) = state_key
                 host_state = host_state_map[state_key]
+                LOG.debug(host_state.networks)
                 host_networks.setdefault(host, set())
-                host_networks[host].union(host_state.networks)
+                host_networks[host] = host_networks[host].union(
+                                                        host_state.networks)
 
             # aggregate hosted networks for each upper level device
             dev_networks = {}
@@ -469,7 +472,7 @@ class SolverSchedulerHostManager(host_manager.HostManager):
                 for (host_name, port_id) in dev_host_map[dev_id]:
                     current_dev_networks = current_dev_networks.union(
                             host_networks.get(host_name, []))
-                dev_networks[dev_id] = list(current_dev_networks)
+            dev_networks[dev_id] = list(current_dev_networks)
 
             # make aggregated networks list for each hosts
             for host_name in host_dev_map.keys():
