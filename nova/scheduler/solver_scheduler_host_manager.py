@@ -460,7 +460,6 @@ class SolverSchedulerHostManager(host_manager.HostManager):
             for state_key in host_state_map.keys():
                 (host, node) = state_key
                 host_state = host_state_map[state_key]
-                LOG.debug(host_state.networks)
                 host_networks.setdefault(host, set())
                 host_networks[host] = host_networks[host].union(
                                                         host_state.networks)
