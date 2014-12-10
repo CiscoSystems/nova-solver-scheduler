@@ -42,7 +42,7 @@ class HostNetworkAffinityCost(solvercosts.BaseCost):
         costs = [[0 for j in range(num_instances)]
                 for i in range(num_hosts)]
 
-        requested_networks = weight_properties.get('requested_networks', None)
+        requested_networks = filter_properties.get('requested_networks', None)
         if requested_networks is None:
             return costs
 

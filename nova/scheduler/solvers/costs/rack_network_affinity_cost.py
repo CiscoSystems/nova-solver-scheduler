@@ -42,7 +42,7 @@ class RackNetworkAffinityCost(solvercosts.BaseCost):
         costs = [[0 for j in range(num_instances)]
                 for i in range(num_hosts)]
 
-        requested_networks = weight_properties.get('requested_networks', None)
+        requested_networks = filter_properties.get('requested_networks', None)
         if requested_networks is None:
             return costs
 
@@ -50,7 +50,7 @@ class RackNetworkAffinityCost(solvercosts.BaseCost):
             host_cost = 0
             for network_id, requested_ip, port_id in requested_networks:
                 if network_id:
-                    if network_id in sum(hosts[i].aggregated_networks.values(), []):
+                    if network_id in sum(hosts[i].rack_networks.values(), []):
                         host_cost -= 1
             costs[i] = [host_cost for j in range(num_instances)]
 
