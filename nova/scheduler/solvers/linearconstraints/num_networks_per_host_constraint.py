@@ -18,8 +18,14 @@ from oslo.config import cfg
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import linearconstraints
 
+max_host_networks_opts = [
+    cfg.IntOpt('max_networks_per_host',
+            default=4094,
+            help='The maximum number of networks allowed in a host')
+    ]
+
 CONF = cfg.CONF
-CONF.import_opt("max_networks_per_host", "nova.scheduler.filters.num_networks_per_host_filter")
+CONF.register_opts(max_host_networks_opts)
 
 LOG = logging.getLogger(__name__)
 
@@ -65,11 +71,10 @@ class NumNetworksPerHostConstraint(
                     if network_id not in hosts[i].networks:
                         num_new_networks[i] += 1
 
-        for i in range(self.num_hosts)]:
-            coefficient_vectors = [
-                    [num_new_networks[i] - usable_network_nums[i]
-                    for j in range(self.num_instances)]
-                    for i in range(self.num_hosts)]
+        coefficient_vectors = [
+                [num_new_networks[i] - usable_network_nums[i]
+                for j in range(self.num_instances)]
+                for i in range(self.num_hosts)]
         return coefficient_vectors
 
     def get_variable_vectors(self, variables, hosts, instance_uuids,
