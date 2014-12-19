@@ -55,6 +55,7 @@ class NumInstancesPerHostConstraint(linearconstraints.BaseLinearConstraint):
         # The coefficient for each variable is 1 and constant in
         # each constraint is -(max_instances_per_host)
         supply = [self._get_usable_instance_num(hosts[i])
+                for i in range(self.num_hosts)]
         coefficient_vectors = [[1 for j in range(self.num_instances)] +
                 [-supply[i]] for i in range(self.num_hosts)]
         return coefficient_vectors
