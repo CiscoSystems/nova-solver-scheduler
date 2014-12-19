@@ -42,26 +42,27 @@ class AggregateNetworkAffinityCost(solvercosts.BaseCost):
         costs = [[0 for j in range(num_instances)]
                 for i in range(num_hosts)]
 
-        requested_networks = weight_properties.get('requested_networks', None)
+        requested_networks = filter_properties.get('requested_networks', None)
         if requested_networks is None:
             return costs
 
         for i in range(num_hosts):
             host_cost = 0
-            host_aggregate_networks = set()
+            affinity_networks = set()
             aggregates_stats = hosts[i].host_aggregates_stats
             for aggregate in aggregates_stats.values():
                 aggregate_metadata = aggregate.get('metadata', {})
-                do_vlan_weighing = aggregate_metadata.get('schedule_vlan_weigher', None)
+                netaffinity_flag = aggregate_metadata.get('network_affinity', None)
                 aggregate_networks = aggregate.get('networks', None)
-                if (do_vlan_weighing in ['True', 'true', '1', 'Yes', 'yes', 'Y', 'y']
+                if (netaffinity_flag in ['True', 'true', '1', 'Yes', 'yes', 'Y', 'y']
                         and (aggregate_networks is not None)):
-                    host_aggregate_networks.union(aggregate_networks)
-            host_aggregate_networks = list(host_aggregate_networks)
+                    affinity_networks = affinity_networks.union(
+                                            aggregate_networks)
+            affinity_networks = list(affinity_networks)
             
             for network_id, requested_ip, port_id in requested_networks:
                 if network_id:
-                    if network_id in host_aggregate_networks:
+                    if network_id in affinity_networks:
                         host_cost -= 1
             costs[i] = [host_cost for j in range(num_instances)]
 
