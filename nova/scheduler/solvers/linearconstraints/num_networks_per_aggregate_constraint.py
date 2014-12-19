@@ -15,6 +15,7 @@
 
 from oslo.config import cfg
 
+from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import linearconstraints
 
@@ -51,36 +52,38 @@ class NumNetworksPerAggregateConstraint(
 
     def get_coefficient_vectors(self, variables, hosts, instance_uuids,
                                 request_spec, filter_properties):
-        """Calculate the coeffivient vectors."""
+        """Calculate the coefficient vectors."""
         # The coefficient for each variable is 1 and constant in
         # each constraint is -(max_instances_per_host)
+        coefficient_vectors = []
         requested_networks = filter_properties.get('requested_networks', None)
-        max_networks_allowed = CONF.max_networks_per_rack
-        remain_networks = [0 for i in range(self.num_hosts)]
         for i in range(self.num_hosts):
-            aggregate_stats = hosts[i].host_aggregates_stats
-            min_remain_aggregate_networks = 0
-            for aggregate in aggregate_stats.values():
+            aggregates_stats = hosts[i].host_aggregates_stats
+            host_passes = True
+            for aggregate in aggregates_stats.values():
                 aggregate_metadata = aggregate.get('metadata', {})
-                max_networks_allowed = aggregate_metadata.get('max_networks', None)
+                max_networks = aggregate_metadata.get('max_networks', None)
                 aggregate_networks = aggregate.get('networks', None)
                 if max_networks is None or aggregate_networks is None:
                         continue
                 num_aggregate_networks = len(aggregate_networks)
-                remain_aggregate_networks = max_networks_allowed - num_aggregate_networks
+                num_new_networks = 0
                 for network_id, requested_ip, port_id in requested_networks:
                     if network_id:
                         if network_id not in aggregate_networks:
-                            remain_aggregate_networks -= 1
-                if remain_aggregate_networks < min_remain_aggregate_networks:
-                    min_remain_aggregate_networks = remain_aggregate_networks
-            remain_networks[i] = min_remain_aggregate_networks
+                            num_new_networks += 1
+                if (num_new_networks + num_aggregate_networks >
+                        int(max_networks)):
+                    host_passes = False
+                    break
 
-        for i in range(self.num_hosts)]:
-            coefficient_vectors = [
-                    [-remain_networks[i]
-                    for j in range(self.num_instances)]
-                    for i in range(self.num_hosts)]
+            if host_passes:
+                coefficient_vectors.append(
+                        [0 for j in range(self.num_instances)])
+            else:
+                coefficient_vectors.append(
+                        [1 for j in range(self.num_instances)])
+        
         return coefficient_vectors
 
     def get_variable_vectors(self, variables, hosts, instance_uuids,
@@ -97,6 +100,6 @@ class NumNetworksPerAggregateConstraint(
                         filter_properties):
         """Set operations for each constraint function."""
         # Operations are '<='.
-        operations = [(lambda x: x <= 0) for i in range(self.num_hosts)]
+        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
         return operations
     
