@@ -198,5 +198,5 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
             # resource used by the instance
             chosen_host.obj.consume_from_instance(instance_properties)
             if update_group_hosts is True:
-                filter_properties['group_hosts'].append(chosen_host.obj.host)
+                filter_properties['group_hosts'].add(chosen_host.obj.host)
         return selected_hosts
