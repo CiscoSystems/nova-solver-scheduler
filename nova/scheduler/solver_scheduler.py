@@ -30,18 +30,19 @@ from nova.scheduler import driver
 from nova.scheduler import filter_scheduler
 from nova.scheduler import weights
 
+CONF = cfg.CONF
+LOG = logging.getLogger(__name__)
+
 solver_opts = [
     cfg.StrOpt('scheduler_host_solver',
-        default='nova.scheduler.solvers.hosts_pulp_solver.HostsPulpSolver',
+        default='nova.scheduler.solvers.pluggable_hosts_pulp_solver.HostsPulpSolver',
         help='The pluggable solver implementation to use. By default, a '
               'reference solver implementation is included that models '
               'the problem as a Linear Programming (LP) problem using PULP.'),
-    ]
+]
 
-CONF = cfg.CONF
 CONF.register_opts(solver_opts, group='solver_scheduler')
 
-LOG = logging.getLogger(__name__)
 
 class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
     """Scheduler that picks hosts using a Constraint Solver
@@ -177,8 +178,8 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         
         list_hosts = list(hosts)
         host_instance_tuples_list = self.hosts_solver.host_solve(
-                                        list_hosts, instance_uuids,
-                                        request_spec, filter_properties)
+                                            list_hosts, instance_uuids,
+                                            request_spec, filter_properties)
         LOG.debug(_("solver results: %(host_instance_list)s") %
                     {"host_instance_list": host_instance_tuples_list})
         # NOTE(Yathi): Not using weights in solver scheduler,
@@ -186,8 +187,7 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         # to match the common method signatures of the
         # FilterScheduler class
         selected_hosts = [weights.WeighedHost(host, 1)
-                            for (host, instance) in
-                            host_instance_tuples_list]
+                            for (host, instance) in host_instance_tuples_list]
         for chosen_host in selected_hosts:
             # Update the host state after deducting the
             # resource used by the instance
