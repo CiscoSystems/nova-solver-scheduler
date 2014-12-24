@@ -395,7 +395,8 @@ class SolverSchedulerHostManager(host_manager.HostManager):
                 for host_state in host_state_list:
                     projects = projects.union(host_state.projects)
                     networks = networks.union(host_state.networks)
-            aggregate_stats = {'projects': list(projects),
+            aggregate_stats = {'hosts': hosts,
+                                'projects': list(projects),
                                 'networks': list(networks),
                                 'metadata': aggregate.metadata}
             # Now set this value to all the member host_states
