@@ -23,7 +23,7 @@ CONF.import_opt('ram_allocation_ratio', 'nova.scheduler.filters.ram_filter')
 
 
 class MaxRamAllocationPerHostConstraint(
-        linearconstraints.ResourceAllocationConstraint):
+        linearconstraints.BaseLinearConstraint):
     """Constraint of the total ram demand acceptable on each host."""
 
     # The linear constraint should be formed as:
@@ -36,8 +36,6 @@ class MaxRamAllocationPerHostConstraint(
                                 request_spec, filter_properties):
         # Give demand as coefficient for each variable and -supply as constant
         # in each constraint.
-        [num_hosts, num_instances] = self._get_host_instance_nums(hosts,
-                                          instance_uuids, request_spec)
         demand = [self._get_required_memory_mb(filter_properties)
                   for j in range(self.num_instances)]
         supply = [self._get_usable_memory_mb(hosts[i])

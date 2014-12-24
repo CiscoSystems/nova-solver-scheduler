@@ -23,7 +23,7 @@ CONF.import_opt('disk_allocation_ratio', 'nova.scheduler.filters.disk_filter')
 
 
 class MaxDiskAllocationPerHostConstraint(
-        linearconstraints.ResourceAllocationConstraint):
+        linearconstraints.BaseLinearConstraint):
     """Constraint of the maximum total disk demand acceptable on each host."""
 
     # The linear constraint should be formed as:

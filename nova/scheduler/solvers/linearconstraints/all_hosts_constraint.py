@@ -28,22 +28,6 @@ class AllHostsConstraint(linearconstraints.BaseLinearConstraint):
     # coeff_vector * var_vector' <operator> <constants>
     # where <operator> is ==, >, >=, <, <=, !=, etc.
 
-    def __init__(self, variables, hosts, instance_uuids, request_spec,
-                filter_properties):
-        self.servicegroup_api = servicegroup.API()
-        [self.num_hosts, self.num_instances] = self._get_host_instance_nums(
-                                        hosts, instance_uuids, request_spec)
-        self._check_variables_size(variables)
-
-    def _get_host_instance_nums(self, hosts, instance_uuids, request_spec):
-        """This method calculates number of hosts and instances."""
-        num_hosts = len(hosts)
-        if instance_uuids:
-            num_instances = len(instance_uuids)
-        else:
-            num_instances = request_spec.get('num_instances', 1)
-        return [num_hosts, num_instances]
-
     def _check_variables_size(self, variables):
         """This method checks the size of variable matirx."""
         # Supposed to be a <num_hosts> by <num_instances> matrix.

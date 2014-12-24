@@ -22,7 +22,7 @@ CONF.import_opt('cpu_allocation_ratio', 'nova.scheduler.filters.core_filter')
 
 
 class MaxVcpuAllocationPerHostConstraint(
-        linearconstraints.ResourceAllocationConstraint):
+        linearconstraints.BaseLinearConstraint):
     """Constraint of the total vcpu demand acceptable on each host."""
 
     # The linear constraint should be formed as:
@@ -35,8 +35,6 @@ class MaxVcpuAllocationPerHostConstraint(
                                 request_spec, filter_properties):
         # Give demand as coefficient for each variable and -supply as constant
         # in each constraint.
-        [num_hosts, num_instances] = self._get_host_instance_nums(hosts,
-                                          instance_uuids, request_spec)
         demand = [self._get_required_vcpus(filter_properties)
                   for j in range(self.num_instances)]
         supply = [self._get_usable_vcpus(hosts[i])

@@ -31,21 +31,6 @@ class IoOpsConstraint(linearconstraints.BaseLinearConstraint):
     concurrent I/O operations are within a set threshold.
     """
 
-    def __init__(self, variables, hosts, instance_uuids, request_spec,
-                filter_properties):
-        self.compute_api = compute.API()
-        [self.num_hosts, self.num_instances] = self._get_host_instance_nums(
-                                        hosts, instance_uuids, request_spec)
-
-    def _get_host_instance_nums(self, hosts, instance_uuids, request_spec):
-        """This method calculates number of hosts and instances."""
-        num_hosts = len(hosts)
-        if instance_uuids:
-            num_instances = len(instance_uuids)
-        else:
-            num_instances = request_spec.get('num_instances', 1)
-        return [num_hosts, num_instances]
-
     # The linear constraint should be formed as:
     # coeff_matrix * var_matrix' (operator) constant_vector
     # where (operator) is ==, >, >=, <, <=, !=, etc.
