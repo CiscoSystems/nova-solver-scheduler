@@ -17,28 +17,20 @@
 Manage hosts in the current zone.
 """
 
-import collections
-import copy
-import UserDict
-
 from oslo.config import cfg
 
 from nova.compute import task_states
 from nova.compute import vm_states
 from nova import db
-from nova import exception
-from nova.network.neutronv2 import api as neutron_api
-from nova.objects import instance as instance_obj
 from nova.objects import aggregate as aggregate_obj
+from nova.objects import instance as instance_obj
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
 from nova.pci import pci_request
 from nova.pci import pci_stats
-from nova.scheduler import filters
 from nova.scheduler import host_manager
-from nova.scheduler import weights
 
 physnet_config_file_opts = [
     cfg.StrOpt('physnet_config_file',
@@ -79,9 +71,9 @@ class HostState(host_manager.HostState):
             return
         host = service['host']
         # retrieve instances for each hosts to extract needed infomation
-        # NOTE: ideally we should use get_by_host_and_node, but there's a bug 
+        # NOTE: ideally we should use get_by_host_and_node, but there's a bug
         # in the Icehouse release, that doesn't allow 'expected_attrs' here.
-        instances = instance_obj.InstanceList.get_by_host(context, host, 
+        instances = instance_obj.InstanceList.get_by_host(context, host,
                     expected_attrs=['info_cache'])
         # get hosted networks
         # NOTE(Xinyuan): POC.
@@ -249,9 +241,9 @@ class HostState(host_manager.HostState):
     def update_from_networks(self, requested_networks):
         for network_id, fixed_ip, port_id in requested_networks:
             if network_id:
-                if not network_id in self.networks:
+                if network_id not in self.networks:
                     self.networks.append(network_id)
-                    if not network_id in self.aggregated_networks:
+                    if not network_id not in self.aggregated_networks:
                         for device in self.aggregated_networks:
                             self.aggregated_networks[device].append(network_id)
                     # do this for host aggregates
@@ -263,8 +255,8 @@ class HostState(host_manager.HostState):
                                     'networks'].append(network_id)
 
     def __repr__(self):
-        return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s "\
-                "physnet_config:%s networks:%s rack_networks:%s "\
+        return ("(%s, %s) ram:%s disk:%s io_ops:%s instances:%s "
+                "physnet_config:%s networks:%s rack_networks:%s "
                 "projects:%s aggregate_stats:%s" %
                 (self.host, self.nodename, self.free_ram_mb, self.free_disk_mb,
                  self.num_io_ops, self.num_instances, self.physnet_config,
@@ -408,12 +400,12 @@ class SolverSchedulerHostManager(host_manager.HostManager):
         """Retrieve the physical and virtual network states of the hosts.
         """
         def _get_physnet_mappings():
-            """Get physical network topologies from a Neutron config file. 
-            This is a hard-coded function which only supports Cisco Nexus 
+            """Get physical network topologies from a Neutron config file.
+            This is a hard-coded function which only supports Cisco Nexus
             driver for Neutron ML2 plugin currently.
             """
             # NOTE(Xinyuan): This feature is for POC only!
-            # TODO(Xinyuan): further works are required in implementing 
+            # TODO(Xinyuan): further works are required in implementing
             # Neutron API extensions to get related information.
             host2device_map = {}
             device2host_map = {}
@@ -426,7 +418,7 @@ class SolverSchedulerHostManager(host_manager.HostManager):
                 physnet_config_parser = cfg.ConfigParser(
                         CONF.physnet_config_file, sections)
                 physnet_config_parser.parse()
-            except:
+            except Exception:
                 LOG.warn(_("Physnet config file was not parsed properly."))
             # Example section:
             # [ml2_mech_cisco_nexus:1.1.1.1]
@@ -449,7 +441,7 @@ class SolverSchedulerHostManager(host_manager.HostManager):
             return host2device_map, device2host_map
 
         def _get_rack_networks(host_dev_map, dev_host_map, host_state_map):
-            """Aggregate the networks associated with a group of hosts in 
+            """Aggregate the networks associated with a group of hosts in
             same physical groups (e.g. under same ToR switches...)
             """
             rack_networks = {}

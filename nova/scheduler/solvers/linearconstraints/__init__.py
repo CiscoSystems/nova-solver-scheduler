@@ -57,6 +57,7 @@ class BaseLinearConstraint(object):
         """Returns a list of operations."""
         raise NotImplementedError()
 
+
 class AffinityConstraint(BaseLinearConstraint):
     def __init__(self, *args, **kwargs):
         super(AffinityConstraint, self).__init__(*args, **kwargs)

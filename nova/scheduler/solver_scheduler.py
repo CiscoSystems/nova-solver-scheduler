@@ -35,7 +35,8 @@ LOG = logging.getLogger(__name__)
 
 solver_opts = [
     cfg.StrOpt('scheduler_host_solver',
-        default='nova.scheduler.solvers.pluggable_hosts_pulp_solver.HostsPulpSolver',
+        default='nova.scheduler.solvers'
+                '.pluggable_hosts_pulp_solver.HostsPulpSolver',
         help='The pluggable solver implementation to use. By default, a '
               'reference solver implementation is included that models '
               'the problem as a Linear Programming (LP) problem using PULP.'),
@@ -175,7 +176,7 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         selected_hosts = []
         hosts = self.host_manager.get_hosts_stripping_ignored_and_forced(
                                       hosts, filter_properties)
-        
+
         list_hosts = list(hosts)
         host_instance_tuples_list = self.hosts_solver.host_solve(
                                             list_hosts, instance_uuids,
