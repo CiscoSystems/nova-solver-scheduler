@@ -26,7 +26,7 @@ CONF = cfg.CONF
 
 
 class HostNetworkAffinityCost(solvercosts.BaseCost):
-    """The cost is evaluated by the existence of 
+    """The cost is evaluated by the existence of
     requested networks in hosts.
     """
 

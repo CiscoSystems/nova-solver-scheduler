@@ -30,7 +30,6 @@ from cinderclient import exceptions as client_exceptions
 
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
-from nova.scheduler import driver as scheduler_driver
 from nova.scheduler.solvers import costs as solvercosts
 import nova.volume.cinder as volumecinder
 
@@ -78,7 +77,7 @@ class VolumeAffinityCost(solvercosts.BaseCost):
                 except client_exceptions.Unauthorized:
                     LOG.warning(_("Failed to retrieve volume %s: unauthorized")
                         % volume_id)
-                except:
+                except Exception:
                     LOG.warning(_("Failed to retrieve volume due to an error"))
 
                 if volume_host:

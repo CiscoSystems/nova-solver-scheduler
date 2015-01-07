@@ -26,7 +26,7 @@ CONF = cfg.CONF
 
 
 class AggregateNetworkAffinityCost(solvercosts.BaseCost):
-    """The cost is evaluated by the existence of 
+    """The cost is evaluated by the existence of
     requested networks in host aggregates.
     """
 
@@ -52,14 +52,16 @@ class AggregateNetworkAffinityCost(solvercosts.BaseCost):
             aggregates_stats = hosts[i].host_aggregates_stats
             for aggregate in aggregates_stats.values():
                 aggregate_metadata = aggregate.get('metadata', {})
-                netaffinity_flag = aggregate_metadata.get('network_affinity', None)
+                netaffinity_flag = aggregate_metadata.get(
+                        'network_affinity', None)
                 aggregate_networks = aggregate.get('networks', None)
-                if (netaffinity_flag in ['True', 'true', '1', 'Yes', 'yes', 'Y', 'y']
+                if (netaffinity_flag in [
+                        'True', 'true', '1', 'Yes', 'yes', 'Y', 'y']
                         and (aggregate_networks is not None)):
                     affinity_networks = affinity_networks.union(
                                             aggregate_networks)
             affinity_networks = list(affinity_networks)
-            
+
             for network_id, requested_ip, port_id in requested_networks:
                 if network_id:
                     if network_id in affinity_networks:
