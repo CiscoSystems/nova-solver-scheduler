@@ -15,7 +15,6 @@
 
 from oslo.config import cfg
 
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import linearconstraints
 
@@ -69,7 +68,7 @@ class NumNetworksPerAggregateConstraint(
             else:
                 coefficient_vectors.append(
                         [1 for j in range(self.num_instances)])
-        
+
         return coefficient_vectors
 
     def get_variable_vectors(self, variables, hosts, instance_uuids,
@@ -88,4 +87,3 @@ class NumNetworksPerAggregateConstraint(
         # Operations are '<='.
         operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
         return operations
-    

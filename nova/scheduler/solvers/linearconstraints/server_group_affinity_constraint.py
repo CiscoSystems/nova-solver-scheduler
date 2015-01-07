@@ -13,13 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo.config import cfg
-
-from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import linearconstraints
 
 LOG = logging.getLogger(__name__)
+
 
 class ServerGroupAffinityConstraint(linearconstraints.AffinityConstraint):
     """Force to select hosts which host given server group."""
@@ -59,12 +57,14 @@ class ServerGroupAffinityConstraint(linearconstraints.AffinityConstraint):
                                             in range(self.num_instances)])
         return coefficient_vectors
 
-    def get_variable_vectors(self,variables,hosts,instance_uuids,request_spec,filter_properties):
+    def get_variable_vectors(self, variables, hosts, instance_uuids,
+                            request_spec, filter_properties):
         variable_vectors = []
         variable_vectors = [[variables[i][j] for j in range(
                         self.num_instances)] for i in range(self.num_hosts)]
         return variable_vectors
 
-    def get_operations(self,variables,hosts,instance_uuids,request_spec,filter_properties):
-        operations = [(lambda x: x==0) for i in range(self.num_hosts)]
+    def get_operations(self, variables, hosts, instance_uuids,
+                        request_spec, filter_properties):
+        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
         return operations

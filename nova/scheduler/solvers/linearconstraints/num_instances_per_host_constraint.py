@@ -19,7 +19,8 @@ from nova.openstack.common import log as logging
 from nova.scheduler.solvers import linearconstraints
 
 CONF = cfg.CONF
-CONF.import_opt("max_instances_per_host", "nova.scheduler.filters.num_instances_filter")
+CONF.import_opt("max_instances_per_host",
+        "nova.scheduler.filters.num_instances_filter")
 
 LOG = logging.getLogger(__name__)
 
