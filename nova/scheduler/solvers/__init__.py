@@ -46,8 +46,28 @@ CONF.register_opt(scheduler_solver_constraints_opt, group='solver_scheduler')
 SOLVER_CONF = CONF.solver_scheduler
 
 
+class BaseVariables(object):
+    def __init__(self):
+        # The host_instance_adjacency_matrix is such a binary adjacency 
+        # matrix X where X[i][j] represents whether or not instance j is
+        # placed in host i.
+        self.host_instance_adjacency_matrix = []
+        ## The host_selection_binary_array is such an array x where x[i]
+        ## represents whether there is any instance placed in host i.
+        #self.host_selection_binary_array = []
+
+    def populate_variables(self, *args, **kwargs):
+        raise NotImplementedError
+
+
 class BaseHostSolver(object):
     """Base class for host constraint solvers."""
+
+    # Overwrite in sub-class
+    variables_cls = BaseVariables
+
+    def __init__(self):
+        self.variables = variable_cls()
 
     def _get_cost_classes(self):
         """Get cost classes from configuration."""
@@ -82,8 +102,7 @@ class BaseHostSolver(object):
             cost_weights[str(key)] = float(val)
         return cost_weights
 
-    def host_solve(self, hosts, instance_uuids, request_spec,
-                   filter_properties):
+    def solve(self, hosts, filter_properties):
         """Return the list of host-instance tuples after
            solving the constraints.
            Implement this in a subclass.
