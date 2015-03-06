@@ -27,13 +27,6 @@ scheduler_solver_costs_opt = cfg.ListOpt(
         default=['RamCost'],
         help='Which cost matrices to use in the scheduler solver.')
 
-# (xinyuan) This option should be changed to DictOpt type
-# when bug #1276859 is fixed.
-scheduler_solver_cost_weights_opt = cfg.ListOpt(
-        'scheduler_solver_cost_weights',
-        default=['RamCost:1.0'],
-        help='Assign weight for each cost')
-
 scheduler_solver_constraints_opt = cfg.ListOpt(
         'scheduler_solver_constraints',
         default=[],
@@ -41,20 +34,19 @@ scheduler_solver_constraints_opt = cfg.ListOpt(
 
 CONF = cfg.CONF
 CONF.register_opt(scheduler_solver_costs_opt, group='solver_scheduler')
-CONF.register_opt(scheduler_solver_cost_weights_opt, group='solver_scheduler')
 CONF.register_opt(scheduler_solver_constraints_opt, group='solver_scheduler')
 SOLVER_CONF = CONF.solver_scheduler
 
 
 class BaseVariables(object):
+    """Defines the convention of variables to be used in solvers.
+    The variables are supposed to be passed to costs/constraints where they
+    will be reorganized to form optimization problems."""
     def __init__(self):
         # The host_instance_adjacency_matrix is such a binary adjacency 
         # matrix X where X[i][j] represents whether or not instance j is
         # placed in host i.
         self.host_instance_adjacency_matrix = []
-        ## The host_selection_binary_array is such an array x where x[i]
-        ## represents whether there is any instance placed in host i.
-        #self.host_selection_binary_array = []
 
     def populate_variables(self, *args, **kwargs):
         raise NotImplementedError
@@ -90,17 +82,6 @@ class BaseHostSolver(object):
             if constraint.__name__ in expected_constraints:
                 constraint_classes.append(constraint)
         return constraint_classes
-
-    def _get_cost_weights(self):
-        """Get cost weights from configuration."""
-        cost_weights = {}
-        # (xinyuan) This is a temporary workaround for bug #1276859,
-        # need to wait until DictOpt is supported by config sample generator.
-        weights_str_list = SOLVER_CONF.scheduler_solver_cost_weights
-        for weight_str in weights_str_list:
-            (key, sep, val) = weight_str.partition(':')
-            cost_weights[str(key)] = float(val)
-        return cost_weights
 
     def solve(self, hosts, filter_properties):
         """Return the list of host-instance tuples after

@@ -63,11 +63,6 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         instance_properties = request_spec['instance_properties']
         instance_type = request_spec.get("instance_type", None)
 
-        if instance_uuids:
-            num_instances = len(instance_uuids)
-        else:
-            num_instances = request_spec.get('num_instances', 1)
-
         update_group_hosts = self._setup_instance_group(context,
                 filter_properties)
 
@@ -80,6 +75,11 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         if instance_uuids:
             properties['uuid'] = instance_uuids[0]
         self._populate_retry(filter_properties, properties)
+
+        if instance_uuids:
+            num_instances = len(instance_uuids)
+        else:
+            num_instances = request_spec.get('num_instances', 1)
 
         filter_properties.update({'context': context,
                                   'request_spec': request_spec,

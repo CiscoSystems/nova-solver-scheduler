@@ -14,64 +14,35 @@
 #    under the License.
 
 """
-Linear constraints for scheduler linear constraint solvers
+Constraints for scheduler constraint solvers
 """
 
 from nova.compute import api as compute
 from nova import loadables
 
 
-class BaseLinearConstraint(object):
-    """Base class for linear constraint."""
-    # The linear constraint should be formed as:
-    # coeff_vector * var_vector' <operator> <constants>
-    # where <operator> is ==, >, >=, <, <=, !=, etc.
-    # For convenience, the <constants> can be merged into left-hand-side,
-    # thus the right-hand-side is always 0.
-    def __init__(self, variables, hosts, instance_uuids, request_spec,
-                 filter_properties):
-        [self.num_hosts, self.num_instances] = self._get_host_instance_nums(
-            hosts, instance_uuids, request_spec)
+class BaseConstraint(object):
+    """Base class for constraints."""
 
-    def _get_host_instance_nums(self, hosts, instance_uuids, request_spec):
-        """This method calculates number of hosts and instances."""
-        num_hosts = len(hosts)
-        if instance_uuids:
-            num_instances = len(instance_uuids)
-        else:
-            num_instances = request_spec.get('num_instances', 1)
-        return [num_hosts, num_instances]
-
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        """Retruns a list of coefficient vectors."""
-        raise NotImplementedError()
-
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        """Returns a list of variable vectors."""
-        raise NotImplementedError()
-
-    def get_operations(self, variables, hosts, instance_uuids, request_spec,
-                        filter_properties):
-        """Returns a list of operations."""
+    def get_components(self, variables, hosts, filter_properties):
+        """Return the components of the constraint."""
         raise NotImplementedError()
 
 
-class AffinityConstraint(BaseLinearConstraint):
+class AffinityConstraint(BaseConstraint):
     def __init__(self, *args, **kwargs):
         super(AffinityConstraint, self).__init__(*args, **kwargs)
         self.compute_api = compute.API()
 
 
-class LinearConstraintHandler(loadables.BaseLoader):
+class ConstraintHandler(loadables.BaseLoader):
     def __init__(self):
-        super(LinearConstraintHandler, self).__init__(BaseLinearConstraint)
+        super(ConstraintHandler, self).__init__(BaseLinearConstraint)
 
 
-def all_linear_constraints():
-    """Return a list of lineear constraint classes found in this directory.
-    This method is used as the default for available linear constraints for
-    scheduler and returns a list of all linearconstraint classes available.
+def all_constraints():
+    """Return a list of constraint classes found in this directory.
+    This method is used as the default for available constraints for
+    scheduler and returns a list of all constraint classes available.
     """
-    return LinearConstraintHandler().get_all_classes()
+    return ConstraintHandler().get_all_classes()

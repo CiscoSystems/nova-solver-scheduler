@@ -19,17 +19,18 @@ from pulp import pulp
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler import solvers as scheduler_solver
+from nova import weights
 
 LOG = logging.getLogger(__name__)
 
 
 class PulpVariables(scheduler_solver.BaseVariables):
     
-    def populate_variables(self, num_hosts, num_instances):
+    def populate_variables(self, host_keys, instance_keys):
         self.host_instance_adjacency_matrix = [
-                [pulp.LpVariable("HIA" + "_Host" + str(i) + "_Instance" +
-                str(j), 0, 1, constants.LpInteger)
-                for j in range(num_instances)] for i in range(num_hosts)]
+                [pulp.LpVariable("HIA_" + host_key + instance_key, 0, 1,
+                constants.LpInteger) for instance_key in instance_keys]
+                for host_key in host_keys]
 
 
 class PulpSolver(scheduler_solver.BaseHostSolver):
@@ -41,7 +42,6 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         super(HostsPulpSolver, self).__init__()
         self.cost_classes = self._get_cost_classes()
         self.constraint_classes = self._get_constraint_classes()
-        self.cost_weights = self._get_cost_weights()
 
     def solve(self, hosts, filter_properties):
         """This method returns a list of tuples - (host, instance_uuid)
@@ -69,57 +69,47 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         instance_keys = ['Instance' + str(i) for i in range(num_instances)]
         instance_key_map = dict(zip(instance_keys, instance_uuids))
 
+        # Create the 'variables' to contain the referenced variables.
+        self.variables.populate_variables(host_keys, instance_keys)
+
         # Create the 'prob' variable to contain the problem data.
         prob = pulp.LpProblem("Host Instance Scheduler Problem",
                                 constants.LpMinimize)
 
-        # Create the 'variables' to contain the referenced variables.
-        self.variables.populate_variables(num_hosts, num_instances)
-
         # Get costs and constraints and formulate the linear problem.
-        self.cost_objects = [cost() for cost in self.cost_classes]
-        self.constraint_objects = [constraint()
-                for constraint in self.constraint_classes]
 
+        # Add costs.
+        cost_objects = [cost() for cost in self.cost_classes]
         cost_coefficients = []
         cost_variables = []
         for cost_object in self.cost_objects:
-            weight = float(self.cost_weights[cost_object.__class__.__name__])
-            current_coefficients = cost_object.get_coefficients(
-                    self.variables, hosts, filter_properties)
-            cost_coefficients.append([
-                    weight * coeff for coeff in current_coefficients])
-            cost_variables.append(cost_object.get_variables())
-            #cost = cost_object.normalize_cost_matrix(cost, 0.0, 1.0)
-            costs = [[costs[i][j] + weight * cost[i][j]
-                    for j in range(num_instances)] for i in range(num_hosts)]
-        LOG.debug(_("costs: %(costs)s") % {"costs": costs})
+            var_list, coeff_list = cost_object.get_components(
+                                    self.variables, hosts, filter_properties)
+            cost_variables.append(var_list)
+            cost_coefficients.append(list(weights.normalize(coeff_list)))
+            LOG.debug(_("cost coeffs of %(name)s is: %(value)s") %
+                    {"name": cost_object.__class__.__name__,
+                    "value": coeff_list})
         prob += (pulp.lpSum([coeff * var
                 for (coeff, var) in zip(cost_coefficients, cost_variables)]),
                 "Sum_Costs")
 
+        # Add constraints.
+        constraint_objects = [constraint()
+                                for constraint in self.constraint_classes]
         for constraint_object in self.constraint_objects:
-            constraint_coefficients = constraint_object.get_coefficients(
-                                    self.variables, hosts, filter_properties)
+            vars_list, coeffs_list, consts_list, ops_list = (
+                    constraint_object.get_components(self.variables, hosts,
+                    filter_properties))
             LOG.debug(_("coeffs of %(name)s is: %(value)s") %
-                        {"name": constraint_object.__class__.__name__,
-                        "value": coefficient_vectors})
-            constraint_constants = constraint_object.get_constants(
-                                    self.variables, hosts, filter_properties)
-            constraint_variables = constraint_object.get_variables(
-                                    self.variables, hosts, filter_properties)
-            constraint_operations = constraint_object.get_operations(
-                                    self.variables, hosts, filter_properties)
-            for i in range(len(operations)):
-                operation = operations[i]
-                len_variables = len(constraint_variables[i])
+                    {"name": constraint_object.__class__.__name__,
+                    "value": coefficient_vectors})
+            for i in range(len(ops_list)):
+                operation = ops_list[i]
                 prob += (
-                        operation(pulp.lpSum(
-                        [constraint_coefficients[i][j]
-                        * constraint_variables[i][j]
-                        for j in range(len_variables)]),
-                        constraint_constants[i]),
-                        "Costraint_Name_%s" %
+                        operation(pulp.lpSum([coeffs_list[i][j] *
+                        vars_list[i][j] for j in range(len(vars_list))]),
+                        consts_list[i]), "Costraint_Name_%s" %
                         constraint_object.__class__.__name__ + "_No._%s" % i)
 
         # The problem is solved using PULP's choice of Solver.
