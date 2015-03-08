@@ -29,6 +29,25 @@ class BaseConstraint(object):
         raise NotImplementedError()
 
 
+class BaseLinearConstraint(BaseConstraint):
+    """Base class of LP constraint."""
+
+    def __init__(self):
+        self.variables = []
+        self.coefficients = []
+        self.constants = []
+        self.operations = []
+
+    def _generate_components(self, variables, hosts, filter_properties):
+        # override in a sub class
+        pass
+
+    def get_components(self, variables, hosts, filter_properties):
+        self._generate_components(variables, hosts, filter_properties)
+        return (self.variables, self.coefficients, self.constants,
+                self.operations)
+
+
 class AffinityConstraint(BaseConstraint):
     def __init__(self, *args, **kwargs):
         super(AffinityConstraint, self).__init__(*args, **kwargs)

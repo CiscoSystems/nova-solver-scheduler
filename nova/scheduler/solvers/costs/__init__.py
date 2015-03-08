@@ -28,6 +28,22 @@ class BaseCost(object):
         raise NotImplementedError()
 
 
+class BaseLinearCost(BaseCost):
+    """Base class of LP cost."""
+    
+    def __init__(self):
+        self.variables = []
+        self.coefficients = []
+
+    def _generate_components(self, variables, hosts, filter_properties):
+        # override in a sub class.
+        pass
+
+    def get_components(self, variables, hosts, filter_properties):
+        self._generate_components(variables, hosts, filter_properties)
+        return (self.variables, self.coefficients)
+
+
 class CostHandler(loadables.BaseLoader):
     def __init__(self):
         super(CostHandler, self).__init__(BaseCost)
