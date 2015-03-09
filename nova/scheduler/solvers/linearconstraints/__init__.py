@@ -36,7 +36,7 @@ class BaseLinearConstraint(BaseConstraint):
         self.variables = []
         self.coefficients = []
         self.constants = []
-        self.operations = []
+        self.operators = []
 
     def _generate_components(self, variables, hosts, filter_properties):
         # override in a sub class
@@ -45,7 +45,7 @@ class BaseLinearConstraint(BaseConstraint):
     def get_components(self, variables, hosts, filter_properties):
         self._generate_components(variables, hosts, filter_properties)
         return (self.variables, self.coefficients, self.constants,
-                self.operations)
+                self.operators)
 
 
 class AffinityConstraint(BaseConstraint):
