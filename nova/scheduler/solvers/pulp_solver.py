@@ -86,7 +86,9 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
             var_list, coeff_list = cost_object.get_components(
                                     self.variables, hosts, filter_properties)
             cost_variables.append(var_list)
-            cost_coefficients.append(list(weights.normalize(coeff_list)))
+            normalized_costs = list(weights.normalize(coeff_list))
+            cost_coefficients.append([val * cost_object.cost_multiplier
+                                                for val in normalized_costs])
             LOG.debug(_("cost coeffs of %(name)s is: %(value)s") %
                     {"name": cost_object.__class__.__name__,
                     "value": coeff_list})

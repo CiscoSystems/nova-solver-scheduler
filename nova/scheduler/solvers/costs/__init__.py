@@ -23,6 +23,15 @@ from nova import loadables
 class BaseCost(object):
     """Base class for cost."""
 
+    def cost_multiplier(self):
+        """How weighted this cost should be.
+
+        Override this method in a subclass, so that the returned value is
+        read from a configuration option to permit operators specify a
+        multiplier for the cost.
+        """
+        return 1.0
+
     def get_components(self, variables, hosts, filter_properties):
         """Return the components of the cost."""
         raise NotImplementedError()
