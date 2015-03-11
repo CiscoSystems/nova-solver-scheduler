@@ -17,25 +17,23 @@
 Scheduler host constraint solvers
 """
 
+from oslo.config import cfg
+
 from nova.scheduler.solvers import costs
 from nova.scheduler.solvers import linearconstraints
 
-from oslo.config import cfg
-
-scheduler_solver_costs_opt = cfg.ListOpt(
-        'scheduler_solver_costs',
-        default=['RamCost'],
-        help='Which cost matrices to use in the scheduler solver.')
-
-scheduler_solver_constraints_opt = cfg.ListOpt(
-        'scheduler_solver_constraints',
-        default=[],
-        help='Which constraints to use in scheduler solver')
+scheduler_solver_opts =[
+        cfg.ListOpt('scheduler_solver_costs',
+                    default=['RamCost'],
+                    help='Which cost matrices to use in the '
+                         'scheduler solver.'),
+        cfg.ListOpt('scheduler_solver_constraints',
+                    default=[],
+                    help='Which constraints to use in scheduler solver'),
+]
 
 CONF = cfg.CONF
-CONF.register_opt(scheduler_solver_costs_opt, group='solver_scheduler')
-CONF.register_opt(scheduler_solver_constraints_opt, group='solver_scheduler')
-SOLVER_CONF = CONF.solver_scheduler
+CONF.register_opts(scheduler_solver_opts, group='solver_scheduler')
 
 
 class BaseVariables(object):
@@ -66,7 +64,7 @@ class BaseHostSolver(object):
         cost_classes = []
         cost_handler = costs.CostHandler()
         all_cost_classes = cost_handler.get_all_classes()
-        expected_costs = SOLVER_CONF.scheduler_solver_costs
+        expected_costs = CONF.solver_scheduler.scheduler_solver_costs
         for cost in all_cost_classes:
             if cost.__name__ in expected_costs:
                 cost_classes.append(cost)
@@ -77,7 +75,8 @@ class BaseHostSolver(object):
         constraint_classes = []
         constraint_handler = linearconstraints.LinearConstraintHandler()
         all_constraint_classes = constraint_handler.get_all_classes()
-        expected_constraints = SOLVER_CONF.scheduler_solver_constraints
+        expected_constraints = (
+                CONF.solver_scheduler.scheduler_solver_constraints)
         for constraint in all_constraint_classes:
             if constraint.__name__ in expected_constraints:
                 constraint_classes.append(constraint)

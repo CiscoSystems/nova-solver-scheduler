@@ -16,10 +16,23 @@
 from pulp import constants
 from pulp import pulp
 
+from oslo.config import cfg
+
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler import solvers as scheduler_solver
 from nova import weights
+
+pulp_solver_opts =[
+        cfg.IntOpt('pulp_solver_timeout_seconds',
+                    default=20,
+                    help='How much time in seconds is allowed for solvers to '
+                         'solve the scheduling problem. If this time limit '
+                         'is exceeded the solver will be stopped.'),
+]
+
+CONF = cfg.CONF
+CONF.register_opts(pulp_solver_opts, group='solver_scheduler')
 
 LOG = logging.getLogger(__name__)
 
@@ -115,7 +128,8 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
                         constraint_object.__class__.__name__ + "_No._%s" % i)
 
         # The problem is solved using PULP's choice of Solver.
-        prob.solve()
+        prob.solve(pulp.solvers.PULP_CBC_CMD(
+                maxSeconds=CONF.solver_scheduler.pulp_solver_timeout_seconds))
 
         # Create host-instance tuples from the solutions.
         if pulp.LpStatus[prob.status] == 'Optimal':

@@ -35,11 +35,15 @@ LOG = logging.getLogger(__name__)
 
 solver_opts = [
     cfg.StrOpt('scheduler_host_solver',
-        default='nova.scheduler.solvers'
-                '.pulp_solver.PulpSolver',
-        help='The pluggable solver implementation to use. By default, a '
-              'reference solver implementation is included that models '
-              'the problem as a Linear Programming (LP) problem using PULP.'),
+                default='nova.scheduler.solvers.pulp_solver.PulpSolver',
+                help='The pluggable solver implementation to use. By '
+                     'default, a reference solver implementation is included '
+                     'that models the problem as a Linear Programming (LP) '
+                     'problem using PULP.'),
+    cfg.StrOpt('fallback_scheduler',
+                default='nova.scheduler.filter_scheduler.FilterScheduler',
+                help='This fallback scheduler will be used automatically if '
+                     'the solver scheduler fails to get a solution.'),
 ]
 
 CONF.register_opts(solver_opts, group='solver_scheduler')
@@ -54,6 +58,8 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
         super(ConstraintSolverScheduler, self).__init__(*args, **kwargs)
         self.hosts_solver = importutils.import_object(
                 CONF.solver_scheduler.scheduler_host_solver)
+        self.fallback_scheduler = importutils.import_object(
+                CONF.solver_scheduler.fallback_scheduler)
 
     def _schedule(self, context, request_spec, filter_properties,
                   instance_uuids=None):
@@ -92,7 +98,13 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
 
         # NOTE(Yathi): Moving the host selection logic to a new method so that
         # the subclasses can override the behavior.
-        return self._get_selected_hosts(context, filter_properties)
+        selected_hosts = self._get_selected_hosts(context, filter_properties)
+        if not selected_hosts:
+            LOG.debug(_("Solver scheduler did not find a solution, fallback "
+                        "scheduler used."))
+            selected_hosts = self.fallback_scheduler._schedule(context,
+                    request_spec, filter_properties, instance_uuids)
+        return selected_hosts
 
     def _get_selected_hosts(self, context, filter_properties):
         """Returns the list of hosts that meet the required specs for
