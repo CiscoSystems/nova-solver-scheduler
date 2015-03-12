@@ -13,46 +13,56 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 from oslo.config import cfg
 
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import constraints
 
+CONF = cfg.CONF
+CONF.import_opt('ram_allocation_ratio', 'nova.scheduler.filters.ram_filter')
+
 LOG = logging.getLogger(__name__)
 
-CONF = cfg.CONF
-CONF.import_opt('max_io_ops_per_host', 'nova.scheduler.filters.io_ops_filter')
-
-
-class IoOpsConstraint(constraints.BaseLinearConstraint):
-    """A constraint to ensure only those hosts are selected whose number of
-    concurrent I/O operations are within a set threshold.
-    """
+class RamConstraint(constraints.BaseLinearConstraint):
+    """Constraint of the total ram demand acceptable on each host."""
 
     def _generate_components(self, variables, hosts, filter_properties):
-        max_io_ops = CONF.max_io_ops_per_host
-
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
         var_matrix = variables.host_instacne_adjacency_matrix
 
+        # get requested ram
+        instance_type = filter_properties.get('instance_type')
+        requested_ram = instance_type['memory_mb']
+
         for i in xrange(num_hosts):
-            num_io_ops = hosts[i].num_io_ops
-            if max_io_ops <= num_io_ops:
+            # get available ram
+            free_ram_mb = hosts[i].free_ram_mb
+            total_usable_ram_mb = hosts[i].total_usable_ram_mb
+            memory_mb_limit = total_usable_ram_mb * CONF.ram_allocation_ratio
+            used_ram_mb = total_usable_ram_mb - free_ram_mb
+            usable_ram = memory_mb_limit - used_ram_mb
+
+            if usable_ram < requested_ram:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
-                LOG.debug(_("%(host)s fails I/O ops check: Max IOs per host "
-                            "is set to %(max_io_ops)s"),
+                LOG.debug(_("%(host)s does not have %(requested)s MB usable "
+                            "ram, it only has %(usable)s MB usable ram."),
                             {'host': hosts[i],
-                            'max_io_ops': max_io_ops})
+                            'requested': requested_ram,
+                            'usable': usable_ram})
             else:
-                self.variables.append([
-                        var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append([1 for j in range(num_instances)])
-                self.constants.append(max_io_ops - num_io_ops)
+                self.variables.append(
+                        [var_matrix[i][j] for j in range(num_instances)])
+                self.coefficients.append(
+                        [requested_ram for j in range(num_instances)])
+                self.constants.append(usable_ram)
                 self.operators.append('<=')
+
+            hosts[i].limits['memory_mb'] = memory_mb_limit

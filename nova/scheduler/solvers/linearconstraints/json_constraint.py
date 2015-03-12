@@ -13,162 +13,26 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import operator
-import six
-
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common import jsonutils
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
+from nova.scheduler.filters import json_filter
+from nova.scheduler.solvers import constraints
 
 
-class JsonConstraint(linearconstraints.BaseLinearConstraint):
+class JsonConstraint(constraints.BaseLinearConstraint):
     """Constraint to allow simple JSON-based grammar for
     selecting hosts.
     """
-    def _op_compare(self, args, op):
-        """Returns True if the specified operator can successfully
-        compare the first item in the args with all the rest. Will
-        return False if only one item is in the list.
-        """
-        if len(args) < 2:
-            return False
-        if op is operator.contains:
-            bad = args[0] not in args[1:]
-        else:
-            bad = [arg for arg in args[1:]
-                    if not op(args[0], arg)]
-        return not bool(bad)
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-    def _equals(self, args):
-        """First term is == all the other terms."""
-        return self._op_compare(args, operator.eq)
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-    def _less_than(self, args):
-        """First term is < all the other terms."""
-        return self._op_compare(args, operator.lt)
-
-    def _greater_than(self, args):
-        """First term is > all the other terms."""
-        return self._op_compare(args, operator.gt)
-
-    def _in(self, args):
-        """First term is in set of remaining terms."""
-        return self._op_compare(args, operator.contains)
-
-    def _less_than_equal(self, args):
-        """First term is <= all the other terms."""
-        return self._op_compare(args, operator.le)
-
-    def _greater_than_equal(self, args):
-        """First term is >= all the other terms."""
-        return self._op_compare(args, operator.ge)
-
-    def _not(self, args):
-        """Flip each of the arguments."""
-        return [not arg for arg in args]
-
-    def _or(self, args):
-        """True if any arg is True."""
-        return any(args)
-
-    def _and(self, args):
-        """True if all args are True."""
-        return all(args)
-
-    commands = {
-        '=': _equals,
-        '<': _less_than,
-        '>': _greater_than,
-        'in': _in,
-        '<=': _less_than_equal,
-        '>=': _greater_than_equal,
-        'not': _not,
-        'or': _or,
-        'and': _and,
-    }
-
-    def _parse_string(self, string, host_state):
-        """Strings prefixed with $ are capability lookups in the
-        form '$variable' where 'variable' is an attribute in the
-        HostState class.  If $variable is a dictionary, you may
-        use: $variable.dictkey
-        """
-        if not string:
-            return None
-        if not string.startswith("$"):
-            return string
-
-        path = string[1:].split(".")
-        obj = getattr(host_state, path[0], None)
-        if obj is None:
-            return None
-        for item in path[1:]:
-            obj = obj.get(item, None)
-            if obj is None:
-                return None
-        return obj
-
-    def _process_filter(self, query, host_state):
-        """Recursively parse the query structure."""
-        if not query:
-            return True
-        cmd = query[0]
-        method = self.commands[cmd]
-        cooked_args = []
-        for arg in query[1:]:
-            if isinstance(arg, list):
-                arg = self._process_filter(arg, host_state)
-            elif isinstance(arg, six.string_types):
-                arg = self._parse_string(arg, host_state)
-            if arg is not None:
-                cooked_args.append(arg)
-        result = method(self, cooked_args)
-        return result
-
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        """Give a list of hosts that can fulfill the requirements
-        specified in the query.
-        """
-
-        coefficient_vectors = []
-        for host in hosts:
-            host_passes = False
-            try:
-                query = filter_properties['scheduler_hints']['query']
-            except KeyError:
-                query = None
-            if not query:
-                host_passes = True
-            else:
-                # NOTE(comstud): Not checking capabilities or service for
-                # enabled/disabled so that a provided json filter can decide
-                result = self._process_filter(jsonutils.loads(query), host)
-                if isinstance(result, list):
-                    # If any succeeded, include the host
-                    result = any(result)
-                if result:
-                    # Filter it out.
-                    host_passes = True
-
-            if host_passes:
-                coefficient_vectors.append([0
-                        for j in range(self.num_instances)])
-            else:
-                coefficient_vectors.append([1
-                        for j in range(self.num_instances)])
-
-        return coefficient_vectors
-
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                    self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
-
-    def get_operations(self, variables, hosts, instance_uuids, request_spec,
-                        filter_properties):
-        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
-        return operations
+        for i in xrange(num_hosts):
+            host_passes = json_filter.JsonFilter().host_passes(
+                                                hosts[i], filter_properties)
+            if not host_passes:
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')

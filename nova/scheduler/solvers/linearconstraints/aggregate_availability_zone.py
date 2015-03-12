@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2012 OpenStack Foundation
+# Copyright (c) 2014 Cisco Systems Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,12 +13,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.scheduler.filters import isolated_hosts_filter
+from nova.scheduler.filters import availability_zone_filter
 from nova.scheduler.solvers import constraints
 
 
-class IsolatedHostsConsrtaint(constraints.BaseLinearConstraint):
-    """Keep specified images to selected hosts."""
+class AggregateAvailabilityZoneConstraint(constraints.BaseLinearConstraint):
+    """Selects Hosts by availability zone.
+
+    Works with aggregate metadata availability zones, using the key
+    'availability_zone'
+    Note: in theory a compute node can be part of multiple availability_zones
+    """
 
     def _generate_components(self, variables, hosts, filter_properties):
         num_hosts = len(hosts)
@@ -27,8 +32,8 @@ class IsolatedHostsConsrtaint(constraints.BaseLinearConstraint):
         var_matrix = variables.host_instacne_adjacency_matrix
 
         for i in xrange(num_hosts):
-            host_passes = isolated_hosts_filter.IsolatedHostsFilter().\
-                                    host_passes(hosts[i],filter_properties)
+            host_passes = availability_zone_filter.AvailabilityZoneFilter().\
+                                    host_passes(hosts[i], filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])

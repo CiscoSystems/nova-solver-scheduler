@@ -13,21 +13,43 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.scheduler.filters import type_filter
+from nova.scheduler.filters import affinity_filter
 from nova.scheduler.solvers import constraints
 
 
-class TypeAffinityConstraint(constraints.BaseLinearConstraint):
-    """TypeAffinityConstraint doesn't allow more then one VM type per host."""
+class SameHostConstraint(constraints.BaseLinearConstraint):
+    """Schedule the instance on the same host as another instance in a set
+    of instances.
+    """
 
     def _generate_components(self, variables, hosts, filter_properties):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
-        var_matrix = variables.host_instacne_adjacency_matrix
+        var_matrix = variables.host_instance_adjacency_matrix
 
         for i in xrange(num_hosts):
-            host_passes = type_filter.TypeAffinityFilter().host_passes(
+            host_passes = affinity_filter.SameHostFilter().host_passes(
+                                                hosts[i], filter_properties)
+            if not host_passes:
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')
+
+
+class DifferentHostConstraint(constraints.BaseLinearConstraint):
+    """Schedule the instance on a different host from a set of instances."""
+
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
+
+        var_matrix = variables.host_instance_adjacency_matrix
+
+        for i in xrange(num_hosts):
+            host_passes = affinity_filter.DifferentHostFilter().host_passes(
                                                 hosts[i], filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):

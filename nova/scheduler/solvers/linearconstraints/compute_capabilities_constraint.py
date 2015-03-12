@@ -13,76 +13,25 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
-from nova.scheduler.linearconstraints import extra_specs_ops
+from nova.scheduler.filters import compute_capabilities_filter
+from nova.scheduler.solvers import constraints
 
 
-LOG = logging.getLogger(__name__)
-
-
-class ComputeCapabilitiesConstraint(linearconstraints.BaseLinearConstraint):
+class ComputeCapabilitiesConstraint(constraints.BaseLinearConstraint):
     """Hard-coded to work with InstanceType records."""
 
-    def _satisfies_extra_specs(self, host_state, instance_type):
-        """Check that the host_state provided by the compute service
-        satisfy the extra specs associated with the instance type.
-        """
-        if 'extra_specs' not in instance_type:
-            return True
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-        for key, req in instance_type['extra_specs'].iteritems():
-            # Either not scope format, or in capabilities scope
-            scope = key.split(':')
-            if len(scope) > 1:
-                if scope[0] != "capabilities":
-                    continue
-                else:
-                    del scope[0]
-            cap = host_state
-            for index in range(0, len(scope)):
-                try:
-                    if not isinstance(cap, dict):
-                        if getattr(cap, scope[index], None) is None:
-                            # If can't find, check stats dict
-                            cap = cap.stats.get(scope[index], None)
-                        else:
-                            cap = getattr(cap, scope[index], None)
-                    else:
-                        cap = cap.get(scope[index], None)
-                except AttributeError:
-                    return False
-                if cap is None:
-                    return False
-            if not extra_specs_ops.match(str(cap), req):
-                LOG.debug(_("extra_spec requirement '%(req)s' does not match "
-                    "'%(cap)s'"), {'req': req, 'cap': cap})
-                return False
-        return True
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        coefficient_vectors = []
-        for host in hosts:
-            instance_type = filter_properties.get('instance_type')
-            if not self._satisfies_extra_specs(host, instance_type):
-                coefficient_vectors.append([1
-                        for j in range(self.num_instances)])
-            else:
-                coefficient_vectors.append([0
-                        for j in range(self.num_instances)])
-
-        return coefficient_vectors
-
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                    self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
-
-    def get_operations(self, variables, hosts, instance_uuids, request_spec,
-                        filter_properties):
-        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
-        return operations
+        for i in xrange(num_hosts):
+            host_passes = compute_capabilities_filter.\
+                                    ComputeCapabilitesFilter().host_passes(
+                                                hosts[i], filter_properties)
+            if not host_passes:
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)

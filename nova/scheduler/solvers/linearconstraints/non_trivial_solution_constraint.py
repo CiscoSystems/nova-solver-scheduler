@@ -13,10 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
-
-LOG = logging.getLogger(__name__)
+from nova.scheduler.solvers import constraints
 
 
 class NonTrivialSolutionConstraint(linearconstraints.BaseLinearConstraint):
@@ -24,31 +21,15 @@ class NonTrivialSolutionConstraint(linearconstraints.BaseLinearConstraint):
     at exactly one host, so as to avoid trivial solutions.
     """
 
-    # The linear constraint should be formed as:
-    # coeff_matrix * var_matrix' (operator) (constants)
-    # where (operator) is ==, >, >=, <, <=, !=, etc.
-    # For convenience, the (constants) is merged into left-hand-side,
-    # thus the right-hand-side is 0.
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        # The coefficient for each variable is 1 and
-        # constant in each constraint is (-1).
-        coefficient_vectors = [[1 for i in range(self.num_hosts)] + [-1]
-                                for j in range(self.num_instances)]
-        return coefficient_vectors
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        # The variable_matrix[i,j] denotes the relationship between
-        # instance[i] and host[j]
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for i in range(self.num_hosts)] +
-                            [1] for j in range(self.num_instances)]
-        return variable_vectors
-
-    def get_operations(self, variables, hosts, instance_uuids, request_spec,
-                        filter_properties):
-        # Operations are '=='.
-        operations = [(lambda x: x == 0) for j in range(self.num_instances)]
-        return operations
+        for j in xrange(num_instances):
+            self.variables.append(
+                    [var_matrix[i][j] for i in range(num_hosts)])
+            self.coefficients.append([1 for i in range(num_hosts)])
+            self.constants.append(1)
+            self.operators.append('==')

@@ -13,62 +13,27 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
-
-LOG = logging.getLogger(__name__)
+from nova.scheduler.filters import aggregate_multitenancy_isolation
+from nova.scheduler.solvers import constraints
 
 
-class AggregateMultitenancyIsolation(
-        linearconstraints.BaseLinearConstraint):
+class AggregateMultitenancyIsolationConstraint(
+                                            constraints.BaseLinearConstraint):
     """Isolate tenants in specific aggregates."""
 
-    # The linear constraint should be formed as:
-    # coeff_matrix * var_matrix' (operator) constant_vector
-    # where (operator) is ==, >, >=, <, <=, !=, etc.
-    # For convenience, the constant_vector is merged into left-hand-side,
-    # thus the right-hand-side is always 0.
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        """If a host is in an aggregate that has the metadata key
-        "filter_tenant_id" it can only create instances from that tenant(s).
-        A host can be in different aggregates.
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-        If a host doesn't belong to an aggregate with the metadata key
-        "filter_tenant_id" it can create instances from all tenants.
-        """
-
-        coefficient_vectors = []
-
-        image_props = request_spec.get(
-                        'instance_properties', {}).get('project_id')
-
-        for host in hosts:
-            aggregates_stats = host.host_aggregates_stats
-            host_passes = True
-            for aggregate in aggregates_stats.values():
-                aggregate_metadata = aggregate.get('metadata', {})
-                filter_tenant_id = aggregate_metadata.get('filter_tenant_id')
-                if filter_tenant_id and tenant_id not in filter_tenant_id:
-                    host_passes = False
-                    break
+        for i in xrange(num_hosts):
+            host_passes = aggregate_multitenancy_isolation.\
+                            AggregateMultitenancyIsolation().host_passes(
+                                                hosts[i], filter_properties)
             if not host_passes:
-                coefficient_vectors.append(
-                                    [1 for j in range(self.num_instances)])
-            else:
-                coefficient_vectors.append(
-                                    [0 for j in range(self.num_instances)])
-            
-        return coefficient_vectors
-
-    def get_variable_vectors(self,variables,hosts,instance_uuids,request_spec,filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                        self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
-
-    def get_operations(self,variables,hosts,instance_uuids,request_spec,filter_properties):
-        operations = [(lambda x: x==0) for i in range(self.num_hosts)]
-        return operations
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')

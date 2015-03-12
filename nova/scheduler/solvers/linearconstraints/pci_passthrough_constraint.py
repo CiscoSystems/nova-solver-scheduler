@@ -13,12 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
+import copy
+
+from nova.scheduler.solvers import constraints
 
 
-class PciPassthroughConstraint(linearconstraints.BaseLinearConstraint):
+class PciPassthroughConstraint(constraints.BaseLinearConstraint):
     """Constraint that schedules instances on a host if the host has devices
     to meet the device requests in the 'extra_specs' for the flavor.
 
@@ -32,32 +32,36 @@ class PciPassthroughConstraint(linearconstraints.BaseLinearConstraint):
     The constraint checks if the host passes or not based on this information.
     """
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        coefficient_vectors = []
-        pci_requests = filter_properties.get('pci_requests')
-        if not pci_requests:
-            coefficient_vectors = [[0 for j in range(self.num_instances)]
-                                    for i in range(self.num_hosts)]
-            return coefficient_vectors
-        for host in hosts:
-            if host.pci_stats.support_requests(pci_requests):
-                coefficient_vectors.append([0
-                        for j in range(self.num_instances)])
+    def _get_acceptable_pci_requests_times(self, max_times_to_try,
+                                                pci_requests, host_pci_stats):
+        acceptable_times = 0
+        while acceptable_times < max_times_to_try:
+            if host_pci_stats.support_requests(pci_requests):
+                acceptable_times += 1
+                host_pci_stats.apply_requests(pci_requests)
             else:
-                coefficient_vectors.append([1
-                        for j in range(self.num_instances)])
+                break
+        return acceptable_times
 
-        return coefficient_vectors
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                    self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-    def get_operations(self, variables, hosts, instance_uuids, request_spec,
-                        filter_properties):
-        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
-        return operations
+        pci_requests = filter_properties.get('pci_requests'):
+        if not pci_requests:
+            return
+
+        for i in xrange(num_hosts):
+            host_pci_stats = copy.deepcopy(hosts[i].pci_stats)
+            acceptable_pci_requests_times = (
+                    self._get_acceptable_pci_requests_times(num_instances,
+                                                pci_requests, host_pci_stats))
+
+            self.variables.append(
+                    [variables[i][j] for j in range(num_instances)])
+            self.coefficients.append(
+                    [1 for j in range(num_instances)])
+            self.constants.append(acceptable_pci_requests_times)
+            self.operators.append('<=')

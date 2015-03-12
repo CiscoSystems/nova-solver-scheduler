@@ -13,68 +13,27 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo.config import cfg
-
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
-from nova.scheduler import utils
-
-LOG = logging.getLogger(__name__)
-
-CONF = cfg.CONF
-CONF.import_opt('weight_setting',
-                'nova.scheduler.weights.metrics',
-                group='metrics')
+from nova.scheduler.filters import metrics_filter
+from nova.scheduler.solvers import constraints
 
 
-class MetricsConstraint(linearconstraints.BaseLinearConstraint):
-    """This constraint is used to filter out those hosts which don't have 
-    the corresponding metrics so these the metrics weigher won't fail due 
-    to these hosts.
+class MetricsConstraint(constraints.BaseLinearConstraint):
+    """This constraint is used to filter out those hosts which don't have the
+    corresponding metrics.
     """
 
-    # The linear constraint should be formed as:
-    # coeff_matrix * var_matrix' (operator) (constants)
-    # where (operator) is ==, >, >=, <, <=, !=, etc.
-    # For convenience, the (constants) is merged into left-hand-side,
-    # thus the right-hand-side is 0.
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-    def __init__(self):
-        super(MetricsConstraint, self).__init__()
-        opts = utils.parse_options(CONF.metrics.weight_setting,
-                                   sep='=',
-                                   converter=float,
-                                   name="metrics.weight_setting")
-        self.keys = [x[0] for x in opts]
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        coefficient_vectors = []
-        for host in hosts:
-            unavail = [i for i in self.keys if i not in host.metrics]
-            if unavail:
-                LOG.debug(_("%(host_state)s does not have the following "
-                        "metrics: %(metrics)s"),
-                        {'host_state': host,
-                        'metrics': ', '.join(unavail)})
-            if len(unavail) == 0:
-                coefficient_vectors.append([0
-                        for j in range(self.num_instances)])
-            else:
-                coefficient_vectors.append([1
-                        for j in range(self.num_instances)])
-
-        return coefficient_vectors
-
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                    self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
-
-    def get_operations(self, variables, hosts, instance_uuids, request_spec,
-                        filter_properties):
-        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
-        return operations
+        for i in xrange(num_hosts):
+            host_passes = metrics_filter.MetricsFilter().host_passes(hosts[i],
+                                                            filter_properties)
+            if not host_passes:
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')

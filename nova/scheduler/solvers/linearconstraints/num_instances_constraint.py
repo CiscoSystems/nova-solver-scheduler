@@ -19,40 +19,44 @@ from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import constraints
 
+CONF = cfg.CONF
+CONF.import_opt("max_instances_per_host",
+        "nova.scheduler.filters.num_instances_filter")
+
 LOG = logging.getLogger(__name__)
 
-CONF = cfg.CONF
-CONF.import_opt('max_io_ops_per_host', 'nova.scheduler.filters.io_ops_filter')
 
-
-class IoOpsConstraint(constraints.BaseLinearConstraint):
-    """A constraint to ensure only those hosts are selected whose number of
-    concurrent I/O operations are within a set threshold.
+class NumInstancesConstraint(constraints.BaseLinearConstraint):
+    """Constraint that specifies the maximum number of instances that
+    each host can launch.
     """
 
     def _generate_components(self, variables, hosts, filter_properties):
-        max_io_ops = CONF.max_io_ops_per_host
-
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
         var_matrix = variables.host_instacne_adjacency_matrix
 
+        max_instances = CONF.max_instances_per_host
+
         for i in xrange(num_hosts):
-            num_io_ops = hosts[i].num_io_ops
-            if max_io_ops <= num_io_ops:
+            num_instances = hosts[i].num_instances
+            acceptable_instance_num = max_instances - num_instances
+
+            if acceptable_instance_num <= 0:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
-                LOG.debug(_("%(host)s fails I/O ops check: Max IOs per host "
-                            "is set to %(max_io_ops)s"),
+                LOG.debug(_("%(host)s fails num_instances check: Max "
+                            "instances per host is set to %(max_inst)s"),
                             {'host': hosts[i],
-                            'max_io_ops': max_io_ops})
+                            'max_inst': max_instances})
             else:
-                self.variables.append([
-                        var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append([1 for j in range(num_instances)])
-                self.constants.append(max_io_ops - num_io_ops)
+                self.variables.append(
+                        [var_matrix[i][j] for j in range(num_instances)])
+                self.coefficients.append(
+                        [1 for j in range(num_instances)])
+                self.constants.append(acceptable_instance_num)
                 self.operators.append('<=')

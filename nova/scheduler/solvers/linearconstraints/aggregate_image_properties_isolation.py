@@ -13,73 +13,27 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo.config import cfg
-
-from nova.openstack.common.gettextutils import _
-from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
-
-CONF = cfg.CONF
-CONF.import_opt('aggregate_image_properties_isolation_namespace',
-        'nova.scheduler.filters.aggregate_image_properties_isolation')
-CONF.import_opt('aggregate_image_properties_isolation_separator',
-        'nova.scheduler.filters.aggregate_image_properties_isolation')
-
-LOG = logging.getLogger(__name__)
+from nova.scheduler.filters import aggregate_image_properties_isolation
+from nova.scheduler.solvers import constraints
 
 
-class AggregateImagePropertiesIsolation(
-        linearconstraints.BaseLinearConstraint):
+class AggregateImagePropertiesIsolationConstraint(
+                                            constraints.BaseLinearConstraint):
     """AggregateImagePropertiesIsolation works with image properties."""
 
-    # The linear constraint should be formed as:
-    # coeff_matrix * var_matrix' (operator) constant_vector
-    # where (operator) is ==, >, >=, <, <=, !=, etc.
-    # For convenience, the constant_vector is merged into left-hand-side,
-    # thus the right-hand-side is always 0.
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        """Checks a host in an aggregate that metadata key/value match
-        with image properties.
-        """
-        cfg_namespace = CONF.aggregate_image_properties_isolation_namespace
-        cfg_separator = CONF.aggregate_image_properties_isolation_separator
+        var_matrix = variables.host_instacne_adjacency_matrix
 
-        coefficient_vectors = []
-
-        image_props = request_spec.get('image', {}).get('properties', {})
-
-        for host in hosts:
-            aggregates_stats = host.host_aggregates_stats
-            host_passes = True
-            for aggregate in aggregates_stats.values():
-                aggregate_metadata = aggregate.get('metadata', {})
-                for key, options in aggregate_metadata.iteritems():
-                    if (cfg_namespace and not
-                            key.startswith(cfg.namespace + cfg_separator)):
-                        continue
-                    prop = image_props.get(key)
-                    if prop and prop not in options:
-                        host_passes = False
-                        break
-                if not host_passes:
-                    break
+        for i in xrange(num_hosts):
+            host_passes = aggregate_image_properties_isolation.\
+                            AggregateImagePropertiesIsolation().host_passes(
+                                                hosts[i], filter_properties)
             if not host_passes:
-                coefficient_vectors.append(
-                                    [1 for j in range(self.num_instances)])
-            else:
-                coefficient_vectors.append(
-                                    [0 for j in range(self.num_instances)])
-            
-        return coefficient_vectors
-
-    def get_variable_vectors(self,variables,hosts,instance_uuids,request_spec,filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                        self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
-
-    def get_operations(self,variables,hosts,instance_uuids,request_spec,filter_properties):
-        operations = [(lambda x: x==0) for i in range(self.num_hosts)]
-        return operations
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')
