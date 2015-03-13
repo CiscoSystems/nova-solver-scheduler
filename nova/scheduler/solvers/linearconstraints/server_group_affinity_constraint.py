@@ -13,58 +13,81 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
-from nova.scheduler.solvers import linearconstraints
+from nova.scheduler.solvers import constraints
 
 LOG = logging.getLogger(__name__)
 
 
-class ServerGroupAffinityConstraint(linearconstraints.AffinityConstraint):
+class ServerGroupAffinityConstraint(constraints.BaseLinearConstraint):
     """Force to select hosts which host given server group."""
-
-    # The linear constraint should be formed as:
-    # coeff_matrix * var_matrix' (operator) constant_vector
-    # where (operator) is ==, >, >=, <, <=, !=, etc.
-    # For convenience, the constant_vector is merged into left-hand-side,
-    # thus the right-hand-side is always 0.
 
     def __init__(self, *args, **kwargs):
         super(ServerGroupAffinityConstraint, self).__init__(*args, **kwargs)
         self.policy_name = 'affinity'
 
-    def get_coefficient_vectors(self, variables, hosts, instance_uuids,
-                                request_spec, filter_properties):
-        coefficient_vectors = []
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
+
+        var_matrix = variables.host_instacne_adjacency_matrix
+
         policies = filter_properties.get('group_policies', [])
         if self.policy_name not in policies:
-            coefficient_vectors = [[0 for j in range(self.num_instances)]
-                                    for i in range(self.num_hosts)]
-            return coefficient_vectors
+            return
 
         group_hosts = filter_properties.get('group_hosts')
+
         if not group_hosts:
-            # when the group is empty, we need to place all the instances in
-            # a same host.
-            coefficient_vectors = [[1 - self.num_instances] +
-                                [1 for j in range(self.num_instances - 1)] for
-                                i in range(self.num_hosts)]
-        for host in hosts:
-            if host.host in group_hosts:
-                coefficient_vectors.append([0 for j
-                                            in range(self.num_instances)])
+            for i in xrange(num_hosts):
+                self.variables.append(
+                            [var_matrix[i][j] for j in range(num_instances)])
+                self.coefficients.append([1 - num_instances] +
+                                        [1 for j in range(num_instances - 1)])
+                self.constants.append(0)
+                self.operators.append('==')
+        else:
+            for i in xrange(num_hosts):
+                if hosts[i].host not in group_hosts:
+                    for j in xrange(num_instances):
+                        self.variables.append([var_matrix[i][j]])
+                        self.coefficients.append([1])
+                        self.constants.append(0)
+                        self.operators.append('==')
+
+
+class ServerGroupAntiAffinityConstraint(constraints.BaseLinearConstraint):
+    """Force to select hosts which host given server group."""
+
+    def __init__(self, *args, **kwargs):
+        super(ServerGroupAntiAffinityConstraint, self).__init__(
+                                                            *args, **kwargs)
+        self.policy_name = 'anti-affinity'
+
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
+
+        var_matrix = variables.host_instacne_adjacency_matrix
+
+        policies = filter_properties.get('group_policies', [])
+        if self.policy_name not in policies:
+            return
+
+        group_hosts = filter_properties.get('group_hosts')
+
+        for i in xrange(num_hosts):
+            if hosts[i].host in group_hosts:
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')
             else:
-                coefficient_vectors.append([1 for j
-                                            in range(self.num_instances)])
-        return coefficient_vectors
-
-    def get_variable_vectors(self, variables, hosts, instance_uuids,
-                            request_spec, filter_properties):
-        variable_vectors = []
-        variable_vectors = [[variables[i][j] for j in range(
-                        self.num_instances)] for i in range(self.num_hosts)]
-        return variable_vectors
-
-    def get_operations(self, variables, hosts, instance_uuids,
-                        request_spec, filter_properties):
-        operations = [(lambda x: x == 0) for i in range(self.num_hosts)]
-        return operations
+                self.variables.append(
+                        [var_matrix[i][j] for j in range(num_instances)])
+                self.coefficients.append(
+                        [1 for j in range(num_instances)])
+                self.constants.append(1)
+                self.operators.append('<=')
