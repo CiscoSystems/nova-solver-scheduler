@@ -60,7 +60,7 @@ class PciPassthroughConstraint(constraints.BaseLinearConstraint):
                                                 pci_requests, host_pci_stats))
 
             self.variables.append(
-                    [variables[i][j] for j in range(num_instances)])
+                    [var_matrix[i][j] for j in range(num_instances)])
             self.coefficients.append(
                     [1 for j in range(num_instances)])
             self.constants.append(acceptable_pci_requests_times)
