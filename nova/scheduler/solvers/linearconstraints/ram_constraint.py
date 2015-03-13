@@ -28,6 +28,9 @@ LOG = logging.getLogger(__name__)
 class RamConstraint(constraints.BaseLinearConstraint):
     """Constraint of the total ram demand acceptable on each host."""
 
+    def _get_ram_allocation_ratio(self, host_state, filter_properties):
+        return CONF.ram_allocation_ratio
+
     def _generate_components(self, variables, hosts, filter_properties):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
@@ -39,10 +42,12 @@ class RamConstraint(constraints.BaseLinearConstraint):
         requested_ram = instance_type['memory_mb']
 
         for i in xrange(num_hosts):
+            ram_allocation_ratio = self._get_ram_allocation_ratio(
+                                                hosts[i], filter_properties)
             # get available ram
             free_ram_mb = hosts[i].free_ram_mb
             total_usable_ram_mb = hosts[i].total_usable_ram_mb
-            memory_mb_limit = total_usable_ram_mb * CONF.ram_allocation_ratio
+            memory_mb_limit = total_usable_ram_mb * ram_allocation_ratio
             used_ram_mb = total_usable_ram_mb - free_ram_mb
             usable_ram = memory_mb_limit - used_ram_mb
 

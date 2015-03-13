@@ -28,6 +28,9 @@ LOG = logging.getLogger(__name__)
 class VcpuConstraint(constraints.BaseLinearConstraint):
     """Constraint of the total vcpu demand acceptable on each host."""
 
+    def _get_cpu_allocation_ratio(self, host_state, filter_properties):
+        return CONF.cpu_allocation_ratio
+
     def _generate_components(self, variables, hosts, filter_properties):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
@@ -42,13 +45,15 @@ class VcpuConstraint(constraints.BaseLinearConstraint):
             instance_vcpus = instance_type['vcpus']
 
         for i in xrange(num_hosts):
+            cpu_allocation_ratio = self._get_cpu_allocation_ratio(
+                                                hosts[i], filter_properties)
             # get available vcpus
             if not hosts[i].vcpus_total:
                 vcpus_total = 0
                 LOG.warn(_("VCPUs of %(host)s not set; assuming CPU "
                             "collection broken."), {'host': hosts[i]})
             else:
-                vcpus_total = hosts[i].vcpus_total * CONF.cpu_allocation_ratio
+                vcpus_total = hosts[i].vcpus_total * cpu_allocation_ratio
                 usable_vcpus = vcpus_total - hosts[i].vcpus_used
 
             if usable_vcpus < requested_vcpus:
