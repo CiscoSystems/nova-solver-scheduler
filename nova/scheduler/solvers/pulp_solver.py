@@ -56,6 +56,16 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         self.cost_classes = self._get_cost_classes()
         self.constraint_classes = self._get_constraint_classes()
 
+    def _get_operation(self, op_str):
+        ops = {
+                '==': lambda x, y: x == y,
+                '!=': lambda x, y: x != y,
+                '>=': lambda x, y: x >= y,
+                '<=': lambda x, y: x <= y,
+                '>': lambda x, y: x > y,
+                '<': lambda x, y: x < y}
+        return ops.get(op_str)
+
     def solve(self, hosts, filter_properties):
         """This method returns a list of tuples - (host, instance_uuid)
         that are returned by the solver. Here the assumption is that
@@ -105,9 +115,9 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
             LOG.debug(_("cost coeffs of %(name)s is: %(value)s") %
                     {"name": cost_object.__class__.__name__,
                     "value": coeff_list})
-        prob += (pulp.lpSum([coeff * var
-                for (coeff, var) in zip(cost_coefficients, cost_variables)]),
-                "Sum_Costs")
+        if cost_variables:
+            prob += (pulp.lpSum([cost_coefficients[i] * cost_variables[i]
+                    for i in range(len(cost_variables))]), "Sum_Costs")
 
         # Add constraints.
         constraint_objects = [constraint()
@@ -120,7 +130,7 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
                     {"name": constraint_object.__class__.__name__,
                     "value": coefficient_vectors})
             for i in range(len(ops_list)):
-                operation = ops_list[i]
+                operation = self._get_operation(ops_list[i])
                 prob += (
                         operation(pulp.lpSum([coeffs_list[i][j] *
                         vars_list[i][j] for j in range(len(vars_list))]),
