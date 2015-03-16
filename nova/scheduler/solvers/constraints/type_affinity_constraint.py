@@ -24,7 +24,7 @@ class TypeAffinityConstraint(constraints.BaseLinearConstraint):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
-        var_matrix = variables.host_instacne_adjacency_matrix
+        var_matrix = variables.host_instance_matrix
 
         for i in xrange(num_hosts):
             host_passes = type_filter.TypeAffinityFilter().host_passes(

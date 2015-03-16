@@ -45,7 +45,7 @@ class RamCost(solver_costs.BaseLinearCost):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
-        var_matrix = variables.host_instance_adjacency_matrix
+        var_matrix = variables.host_instance_matrix
         self.variables = [var_matrix[i][j] for i in range(num_hosts)
                                             for j in range(num_instances)]
 

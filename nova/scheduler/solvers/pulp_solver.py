@@ -40,7 +40,7 @@ LOG = logging.getLogger(__name__)
 class PulpVariables(scheduler_solver.BaseVariables):
     
     def populate_variables(self, host_keys, instance_keys):
-        self.host_instance_adjacency_matrix = [
+        self.host_instance_matrix = [
                 [pulp.LpVariable("HIA_" + host_key + instance_key, 0, 1,
                 constants.LpInteger) for instance_key in instance_keys]
                 for host_key in host_keys]

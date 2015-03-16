@@ -41,10 +41,7 @@ class BaseVariables(object):
     The variables are supposed to be passed to costs/constraints where they
     will be reorganized to form optimization problems."""
     def __init__(self):
-        # The host_instance_adjacency_matrix is such a binary adjacency 
-        # matrix X where X[i][j] represents whether or not instance j is
-        # placed in host i.
-        self.host_instance_adjacency_matrix = []
+        self.host_instance_matrix = []
 
     def populate_variables(self, *args, **kwargs):
         raise NotImplementedError
