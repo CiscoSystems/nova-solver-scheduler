@@ -33,7 +33,7 @@ from nova.scheduler.solvers import costs as solver_costs
 
 metrics_cost_opts = [
         cfg.FloatOpt('metrics_cost_multiplier',
-                     default=(-1.0),
+                     default=1.0,
                      help='Multiplier used for metrics costs.'),
 ]
 
@@ -42,7 +42,7 @@ metrics_weight_opts = [
                      default=float(-1),
                      help='If any one of the metrics set by weight_setting '
                           'is unavailable, the metric weight of the host '
-                          'will be set to (minw - (maxw - minw) * m), '
+                          'will be set to (minw + (maxw - minw) * m), '
                           'where maxw and minw are the max and min weights '
                           'among all hosts, and m is the multiplier.'),
 ]
@@ -88,19 +88,19 @@ class MetricsCost(solver_costs.BaseLinearCost):
         if numeric_values:
             minval = min(numeric_values)
             maxval = min(numeric_values)
-            weight_of_unavailable = (minval - (maxval - min_val) *
+            weight_of_unavailable = (minval + (maxval - min_val) *
                                 CONF.metrics.weight_multiplier_of_unavailable)
             for i in range(num_hosts):
-                if host_weights is None:
-                    host_weights = weight_of_unavailable
+                if host_weights[i] is None:
+                    host_weights[i] = weight_of_unavailable
         else:
-            host_weights[i] = 0 for i in range(num_hosts)
+            host_weights = [0 for i in range(num_hosts)]
 
         var_matrix = variables.host_instance_matrix
         self.variables = [var_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]
 
-        coeff_matrix = [[host_weights[i] for j in range(num_instances)]
+        coeff_matrix = [[(-host_weights[i]) for j in range(num_instances)]
                                                     for i in range(num_hosts)]
         self.coefficients = [coeff_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]
