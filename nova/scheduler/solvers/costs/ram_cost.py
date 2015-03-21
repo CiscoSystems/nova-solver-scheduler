@@ -27,7 +27,7 @@ from nova.scheduler.solvers import costs as solver_costs
 
 ram_cost_opts = [
         cfg.FloatOpt('ram_cost_multiplier',
-                     default=(-1.0),
+                     default=1.0,
                      help='Multiplier used for ram costs. Negative '
                           'numbers mean to spread vs stack.'),
 ]
@@ -45,11 +45,14 @@ class RamCost(solver_costs.BaseLinearCost):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
+        instance_type = filter_properties.get('instance_type')
+        requested_ram = instance_type['memory_mb']
+
         var_matrix = variables.host_instance_matrix
         self.variables = [var_matrix[i][j] for i in range(num_hosts)
                                             for j in range(num_instances)]
 
-        coeff_matrix = [[hosts[i].free_ram_mb for j in range(num_instances)]
-                                                    for i in range(num_hosts)]
+        coeff_matrix = [[-hosts[i].free_ram_mb + requested_ram * j
+                    for j in range(num_instances)] for i in range(num_hosts)]
         self.coefficients = [coeff_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]

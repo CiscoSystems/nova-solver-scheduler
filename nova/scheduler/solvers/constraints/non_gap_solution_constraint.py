@@ -16,9 +16,10 @@
 from nova.scheduler.solvers import constraints
 
 
-class NonTrivialSolutionConstraint(constraints.BaseLinearConstraint):
-    """Constraint that forces every requested instances to be placed
-    at one host, so as to avoid trivial solutions.
+class NonGapSolutionConstraint(constraints.BaseLinearConstraint):
+    """The constraint must be configured when using spread/stack featured
+    costs, e.g. RAM cost. It ensures that all '1's appear in front of any '0'
+    in each row of the host-instance matrix solution.
     """
 
     def _generate_components(self, variables, hosts, filter_properties):
@@ -27,9 +28,10 @@ class NonTrivialSolutionConstraint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
-        for j in xrange(num_instances):
-            self.variables.extend(
-                    [var_matrix[i][j] for i in range(num_hosts)])
-            self.coefficients.extend([1 for i in range(num_hosts)])
-        self.constants.append(num_instances)
-        self.operators.append('==')
+        for i in xrange(num_hosts):
+            for j in xrange(num_instances - 1):
+                self.variables.append(
+                        [var_matrix[i][j], var_matrix[i][j + 1]])
+                self.coefficients.append([1, -1])
+        self.constants.append(0)
+        self.operators.append('>=')
