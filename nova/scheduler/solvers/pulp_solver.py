@@ -21,6 +21,7 @@ from oslo.config import cfg
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler import solvers as scheduler_solver
+from nova import solver_scheduler_exception as exception
 from nova import weights
 
 pulp_solver_opts =[
@@ -154,5 +155,6 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         else:
             LOG.warn(_("Pulp solver didnot find optimal solution! status: %s")
                     % pulp.LpStatus[prob.status])
+            raise exception.SolverFailed(reason=pulp.LpStatus[prob.status])
 
         return host_instance_combinations

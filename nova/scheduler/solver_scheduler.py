@@ -29,6 +29,7 @@ from nova.openstack.common import log as logging
 from nova.scheduler import driver
 from nova.scheduler import filter_scheduler
 from nova.scheduler import weights
+from nova import solver_scheduler_exception
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
@@ -98,8 +99,11 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
 
         # NOTE(Yathi): Moving the host selection logic to a new method so that
         # the subclasses can override the behavior.
-        selected_hosts = self._get_selected_hosts(context, filter_properties)
-        if not selected_hosts:
+        selected_hosts = []
+        try:
+            selected_hosts = self._get_selected_hosts(
+                                                context, filter_properties)
+        except solver_scheduler_exception.SolverFailed:
             LOG.debug(_("Solver scheduler did not find a solution, fallback "
                         "scheduler used."))
             selected_hosts = self.fallback_scheduler._schedule(context,
