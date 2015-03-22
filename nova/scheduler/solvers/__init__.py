@@ -20,7 +20,7 @@ Scheduler host constraint solvers
 from oslo.config import cfg
 
 from nova.scheduler.solvers import costs
-from nova.scheduler.solvers import linearconstraints
+from nova.scheduler.solvers import constraints
 
 scheduler_solver_opts =[
         cfg.ListOpt('scheduler_solver_costs',
@@ -70,7 +70,7 @@ class BaseHostSolver(object):
     def _get_constraint_classes(self):
         """Get constraint classes from configuration."""
         constraint_classes = []
-        constraint_handler = linearconstraints.LinearConstraintHandler()
+        constraint_handler = constraints.ConstraintHandler()
         all_constraint_classes = constraint_handler.get_all_classes()
         expected_constraints = (
                 CONF.solver_scheduler.scheduler_solver_constraints)

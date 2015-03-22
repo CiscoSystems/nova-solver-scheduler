@@ -14,6 +14,7 @@
 #    under the License.
 
 from nova import exception
+from nova.openstack.common.gettextutils import _
 
 
 class SolverFailed(exception.NovaException):
