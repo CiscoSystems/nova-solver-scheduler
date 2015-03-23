@@ -40,7 +40,7 @@ class VcpuConstraint(constraints.BaseLinearConstraint):
         # get requested vcpus
         instance_type = filter_properties.get('instance_type')
         if not instance_type:
-            requested_vcpus = 0
+            return
         else:
             instance_vcpus = instance_type['vcpus']
 
@@ -49,9 +49,9 @@ class VcpuConstraint(constraints.BaseLinearConstraint):
                                                 hosts[i], filter_properties)
             # get available vcpus
             if not hosts[i].vcpus_total:
-                vcpus_total = 0
                 LOG.warn(_("VCPUs of %(host)s not set; assuming CPU "
                             "collection broken."), {'host': hosts[i]})
+                continue
             else:
                 vcpus_total = hosts[i].vcpus_total * cpu_allocation_ratio
                 usable_vcpus = vcpus_total - hosts[i].vcpus_used
