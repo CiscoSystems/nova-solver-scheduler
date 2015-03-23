@@ -20,6 +20,8 @@ cost metrics. The solution is designed to work with pluggable solvers.
 A default solver implementation that uses PULP is included.
 """
 
+import copy
+
 from oslo.config import cfg
 
 from nova import exception
@@ -45,6 +47,11 @@ solver_opts = [
                 default='nova.scheduler.filter_scheduler.FilterScheduler',
                 help='This fallback scheduler will be used automatically if '
                      'the solver scheduler fails to get a solution.'),
+    cfg.BoolOpt('enable_fallback_scheduler',
+                  default=True,
+                  help='Whether to use a fallback scheduler in case the '
+                       'solver scheduler fails to get a solution because '
+                       'of a solver failure.'),
 ]
 
 CONF.register_opts(solver_opts, group='solver_scheduler')
@@ -61,6 +68,107 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
                 CONF.solver_scheduler.scheduler_host_solver)
         self.fallback_scheduler = importutils.import_object(
                 CONF.solver_scheduler.fallback_scheduler)
+
+    def schedule_run_instance(self, context, request_spec,
+                              admin_password, injected_files,
+                              requested_networks, is_first_time,
+                              filter_properties, legacy_bdm_in_spec):
+        """This method is called from nova.compute.api to provision
+        an instance.  We first create a build plan (a list of WeightedHosts)
+        and then provision.
+
+        Returns a list of the instances created.
+        """
+        payload = dict(request_spec=request_spec)
+        self.notifier.info(context, 'scheduler.run_instance.start', payload)
+
+        instance_uuids = request_spec.get('instance_uuids')
+        LOG.info(_("Attempting to build %(num_instances)d instance(s) "
+                    "uuids: %(instance_uuids)s"),
+                  {'num_instances': len(instance_uuids),
+                   'instance_uuids': instance_uuids})
+        LOG.debug(_("Request Spec: %s") % request_spec)
+
+        orig_filter_properties = copy.deepcopy(filter_properties)
+        try:
+            weighed_hosts = self._schedule(context, request_spec,
+                                            filter_properties, instance_uuids)
+        except solver_scheduler_exception.SolverFailed:
+            if CONF.solver_scheduler.enable_fallback_scheduler:
+                LOG.warn(_("Fallback scheduler used."))
+                filter_properties = orig_filter_properties
+                weighed_hosts = self.fallback_scheduler._schedule(context,
+                            request_spec, filter_properties, instance_uuids)
+            else:
+                weighed_hosts = []
+
+        # NOTE: Pop instance_uuids as individual creates do not need the
+        # set of uuids. Do not pop before here as the upper exception
+        # handler fo NoValidHost needs the uuid to set error state
+        instance_uuids = request_spec.pop('instance_uuids')
+
+        # NOTE(comstud): Make sure we do not pass this through.  It
+        # contains an instance of RpcContext that cannot be serialized.
+        filter_properties.pop('context', None)
+
+        for num, instance_uuid in enumerate(instance_uuids):
+            request_spec['instance_properties']['launch_index'] = num
+
+            try:
+                try:
+                    weighed_host = weighed_hosts.pop(0)
+                    LOG.info(_("Choosing host %(weighed_host)s "
+                                "for instance %(instance_uuid)s"),
+                              {'weighed_host': weighed_host,
+                               'instance_uuid': instance_uuid})
+                except IndexError:
+                    raise exception.NoValidHost(reason="")
+
+                self._provision_resource(context, weighed_host,
+                                         request_spec,
+                                         filter_properties,
+                                         requested_networks,
+                                         injected_files, admin_password,
+                                         is_first_time,
+                                         instance_uuid=instance_uuid,
+                                         legacy_bdm_in_spec=legacy_bdm_in_spec)
+            except Exception as ex:
+                # NOTE(vish): we don't reraise the exception here to make sure
+                #             that all instances in the request get set to
+                #             error properly
+                driver.handle_schedule_error(context, ex, instance_uuid,
+                                             request_spec)
+            # scrub retry host list in case we're scheduling multiple
+            # instances:
+            retry = filter_properties.get('retry', {})
+            retry['hosts'] = []
+
+        self.notifier.info(context, 'scheduler.run_instance.end', payload)
+
+    def select_destinations(self, context, request_spec, filter_properties):
+        """Selects a filtered set of hosts and nodes."""
+        num_instances = request_spec['num_instances']
+        instance_uuids = request_spec.get('instance_uuids')
+        orig_filter_properties = copy.deepcopy(filter_properties)
+        try:
+            selected_hosts = self._schedule(context, request_spec,
+                                            filter_properties, instance_uuids)
+        except solver_scheduler_exception.SolverFailed:
+            if CONF.solver_scheduler.enable_fallback_scheduler:
+                LOG.warn(_("Fallback scheduler used."))
+                filter_properties = orig_filter_properties
+                selected_hosts = self.fallback_scheduler._schedule(context,
+                            request_spec, filter_properties, instance_uuids)
+            else:
+                selected_hosts = []
+
+        # Couldn't fulfill the request_spec
+        if len(selected_hosts) < num_instances:
+            raise exception.NoValidHost(reason='')
+
+        dests = [dict(host=host.obj.host, nodename=host.obj.nodename,
+                      limits=host.obj.limits) for host in selected_hosts]
+        return dests
 
     def _schedule(self, context, request_spec, filter_properties,
                   instance_uuids=None):
@@ -99,15 +207,7 @@ class ConstraintSolverScheduler(filter_scheduler.FilterScheduler):
 
         # NOTE(Yathi): Moving the host selection logic to a new method so that
         # the subclasses can override the behavior.
-        selected_hosts = []
-        try:
-            selected_hosts = self._get_selected_hosts(
-                                                context, filter_properties)
-        except solver_scheduler_exception.SolverFailed:
-            LOG.debug(_("Solver scheduler did not find a solution, fallback "
-                        "scheduler used."))
-            selected_hosts = self.fallback_scheduler._schedule(context,
-                    request_spec, filter_properties, instance_uuids)
+        selected_hosts = self._get_selected_hosts(context, filter_properties)
         return selected_hosts
 
     def _get_selected_hosts(self, context, filter_properties):

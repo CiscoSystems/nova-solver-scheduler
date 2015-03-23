@@ -36,9 +36,15 @@ class DiskConstraint(constraints.BaseLinearConstraint):
         var_matrix = variables.host_instance_matrix
 
         # get requested disk
-        instance_type = filter_properties.get('instance_type')
-        requested_disk = (1024 * (instance_type['root_gb'] +
-                instance_type['ephemeral_gb']) + instance_type['swap'])
+        instance_type = filter_properties.get('instance_type') or {}
+        requested_disk = (1024 * (instance_type.get('root_gb', 0) +
+                                  instance_type.get('ephemeral_gb', 0)) +
+                                  instance_type.get('swap', 0))
+        for inst_type_key in ['root_gb', 'ephemeral_gb', 'swap']:
+            if inst_type_key not in instance_type:
+                LOG.warn(_("No information about requested instances\' %s "
+                        "was found, use 0 as the requested %s size.") %
+                        (inst_type_key, inst_type_key))
 
         for i in xrange(num_hosts):
             # get usable disk

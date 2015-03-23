@@ -28,7 +28,8 @@ scheduler_solver_opts =[
                     help='Which cost matrices to use in the '
                          'scheduler solver.'),
         cfg.ListOpt('scheduler_solver_constraints',
-                    default=[],
+                    default=['NonTrivialSolutionConstraint',
+                            'NonGapSolutionConstraint'],
                     help='Which constraints to use in scheduler solver'),
 ]
 
@@ -54,7 +55,7 @@ class BaseHostSolver(object):
     variables_cls = BaseVariables
 
     def __init__(self):
-        self.variables = variable_cls()
+        self.variables = self.variables_cls()
 
     def _get_cost_classes(self):
         """Get cost classes from configuration."""

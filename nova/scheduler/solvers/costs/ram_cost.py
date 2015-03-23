@@ -23,6 +23,8 @@ number and the cost has the opposite effect of the default.
 
 from oslo.config import cfg
 
+from nova.openstack.common.gettextutils import _
+from nova.openstack.common import log as logging
 from nova.scheduler.solvers import costs as solver_costs
 
 ram_cost_opts = [
@@ -35,6 +37,8 @@ ram_cost_opts = [
 CONF = cfg.CONF
 CONF.register_opts(ram_cost_opts, group='solver_scheduler')
 
+LOG = logging.getLogger(__name__)
+
 
 class RamCost(solver_costs.BaseLinearCost):
 
@@ -45,8 +49,11 @@ class RamCost(solver_costs.BaseLinearCost):
         num_hosts = len(hosts)
         num_instances = filter_properties.get('num_instances')
 
-        instance_type = filter_properties.get('instance_type')
-        requested_ram = instance_type['memory_mb']
+        instance_type = filter_properties.get('instance_type') or {}
+        requested_ram = instance_type.get('memory_mb', 0)
+        if 'memory_mb' not in instance_type:
+            LOG.warn(_("No information about requested instances\' RAM size "
+                    "was found, default value (0) is used."))
 
         var_matrix = variables.host_instance_matrix
         self.variables = [var_matrix[i][j] for i in range(num_hosts)

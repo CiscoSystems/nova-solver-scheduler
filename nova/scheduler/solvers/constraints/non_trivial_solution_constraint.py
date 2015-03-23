@@ -27,9 +27,13 @@ class NonTrivialSolutionConstraint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
-        for j in xrange(num_instances):
-            self.variables.extend(
-                    [var_matrix[i][j] for i in range(num_hosts)])
-            self.coefficients.extend([1 for i in range(num_hosts)])
+        var_list = []
+        coeff_list = []
+        for i in xrange(num_hosts):
+            var_list.extend(
+                    [var_matrix[i][j] for j in range(num_instances)])
+            coeff_list.extend([1 for j in range(num_instances)])
+        self.variables.append(var_list)
+        self.coefficients.append(coeff_list)
         self.constants.append(num_instances)
         self.operators.append('==')

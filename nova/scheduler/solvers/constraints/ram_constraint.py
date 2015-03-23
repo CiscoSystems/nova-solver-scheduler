@@ -38,8 +38,11 @@ class RamConstraint(constraints.BaseLinearConstraint):
         var_matrix = variables.host_instance_matrix
 
         # get requested ram
-        instance_type = filter_properties.get('instance_type')
-        requested_ram = instance_type['memory_mb']
+        instance_type = filter_properties.get('instance_type') or {}
+        requested_ram = instance_type.get('memory_mb', 0)
+        if 'memory_mb' not in instance_type:
+            LOG.warn(_("No information about requested instances\' RAM size "
+                    "was found, default value (0) is used."))
 
         for i in xrange(num_hosts):
             ram_allocation_ratio = self._get_ram_allocation_ratio(

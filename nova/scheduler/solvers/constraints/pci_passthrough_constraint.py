@@ -49,7 +49,7 @@ class PciPassthroughConstraint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
-        pci_requests = filter_properties.get('pci_requests'):
+        pci_requests = filter_properties.get('pci_requests')
         if not pci_requests:
             return
 

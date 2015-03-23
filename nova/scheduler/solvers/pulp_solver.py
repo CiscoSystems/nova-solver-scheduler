@@ -15,6 +15,7 @@
 
 from pulp import constants
 from pulp import pulp
+from pulp import solvers as pulp_solver_classes
 
 from oslo.config import cfg
 
@@ -42,7 +43,7 @@ class PulpVariables(scheduler_solver.BaseVariables):
     
     def populate_variables(self, host_keys, instance_keys):
         self.host_instance_matrix = [
-                [pulp.LpVariable("HIA_" + host_key + instance_key, 0, 1,
+                [pulp.LpVariable('HI_' + host_key + '_' + instance_key, 0, 1,
                 constants.LpInteger) for instance_key in instance_keys]
                 for host_key in host_keys]
 
@@ -53,7 +54,7 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
     variables_cls = PulpVariables
 
     def __init__(self):
-        super(HostsPulpSolver, self).__init__()
+        super(PulpSolver, self).__init__()
         self.cost_classes = self._get_cost_classes()
         self.constraint_classes = self._get_constraint_classes()
 
@@ -90,8 +91,7 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         # solving process since we need a convention of lp variable names.
         host_keys = ['Host' + str(i) for i in range(num_hosts)]
         host_key_map = dict(zip(host_keys, hosts))
-        instance_keys = ['Instance' + str(i) for i in range(num_instances)]
-        instance_key_map = dict(zip(instance_keys, instance_uuids))
+        instance_keys = ['InstanceOrder' + str(i) for i in range(num_instances)]
 
         # Create the 'variables' to contain the referenced variables.
         self.variables.populate_variables(host_keys, instance_keys)
@@ -106,12 +106,12 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         cost_objects = [cost() for cost in self.cost_classes]
         cost_coefficients = []
         cost_variables = []
-        for cost_object in self.cost_objects:
+        for cost_object in cost_objects:
             var_list, coeff_list = cost_object.get_components(
                                     self.variables, hosts, filter_properties)
-            cost_variables.append(var_list)
+            cost_variables.extend(var_list)
             normalized_costs = list(weights.normalize(coeff_list))
-            cost_coefficients.append([val * cost_object.cost_multiplier
+            cost_coefficients.extend([val * cost_object.cost_multiplier()
                                                 for val in normalized_costs])
             LOG.debug(_("cost coeffs of %(name)s is: %(value)s") %
                     {"name": cost_object.__class__.__name__,
@@ -123,37 +123,47 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         # Add constraints.
         constraint_objects = [constraint()
                                 for constraint in self.constraint_classes]
-        for constraint_object in self.constraint_objects:
+        for constraint_object in constraint_objects:
             vars_list, coeffs_list, consts_list, ops_list = (
                     constraint_object.get_components(self.variables, hosts,
                     filter_properties))
             LOG.debug(_("coeffs of %(name)s is: %(value)s") %
                     {"name": constraint_object.__class__.__name__,
-                    "value": coefficient_vectors})
+                    "value": coeffs_list})
             for i in range(len(ops_list)):
                 operation = self._get_operation(ops_list[i])
                 prob += (
                         operation(pulp.lpSum([coeffs_list[i][j] *
-                        vars_list[i][j] for j in range(len(vars_list))]),
+                        vars_list[i][j] for j in range(len(vars_list[i]))]),
                         consts_list[i]), "Costraint_Name_%s" %
                         constraint_object.__class__.__name__ + "_No._%s" % i)
 
         # The problem is solved using PULP's choice of Solver.
-        prob.solve(pulp.solvers.PULP_CBC_CMD(
+        prob.solve(pulp_solver_classes.PULP_CBC_CMD(
                 maxSeconds=CONF.solver_scheduler.pulp_solver_timeout_seconds))
 
         # Create host-instance tuples from the solutions.
         if pulp.LpStatus[prob.status] == 'Optimal':
+            num_insts_on_host = {}
             for v in prob.variables():
-                if v.name.startswith('HIA'):
-                    (host_key, instance_key) = v.name.lstrip('HIA').lstrip(
+                if v.name.startswith('HI'):
+                    (host_key, instance_key) = v.name.lstrip('HI').lstrip(
                                                         '_').split('_')
                     if v.varValue == 1:
-                        host_instance_combinations.append(
-                                            (host_key_map[host_key],
-                                            instance_key_map[instance_key]))
+                        num_insts_on_host.setdefault(host_key, 0)
+                        num_insts_on_host[host_key] += 1
+            instances_iter = iter(instance_uuids)
+            for host_key in host_keys:
+                num_insts_on_this_host = num_insts_on_host.get(host_key, 0)
+                for i in xrange(num_insts_on_this_host):
+                    host_instance_combinations.append(
+                            (host_key_map[host_key], instances_iter.next()))
+        elif pulp.LpStatus[prob.status] == 'Infeasible':
+            LOG.warn(_("Pulp solver didnot find optimal solution! reason: %s")
+                    % pulp.LpStatus[prob.status])
+            host_instance_combinations = []
         else:
-            LOG.warn(_("Pulp solver didnot find optimal solution! status: %s")
+            LOG.warn(_("Pulp solver didnot find optimal solution! reason: %s")
                     % pulp.LpStatus[prob.status])
             raise exception.SolverFailed(reason=pulp.LpStatus[prob.status])
 

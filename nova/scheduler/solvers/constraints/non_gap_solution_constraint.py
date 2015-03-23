@@ -28,6 +28,9 @@ class NonGapSolutionConstraint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
+        if num_instances <= 1:
+            return
+
         for i in xrange(num_hosts):
             for j in xrange(num_instances - 1):
                 self.variables.append(

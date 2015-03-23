@@ -48,12 +48,6 @@ class BaseLinearConstraint(BaseConstraint):
                 self.operators)
 
 
-class AffinityConstraint(BaseConstraint):
-    def __init__(self, *args, **kwargs):
-        super(AffinityConstraint, self).__init__(*args, **kwargs)
-        self.compute_api = compute.API()
-
-
 class ConstraintHandler(loadables.BaseLoader):
     def __init__(self):
         super(ConstraintHandler, self).__init__(BaseLinearConstraint)
