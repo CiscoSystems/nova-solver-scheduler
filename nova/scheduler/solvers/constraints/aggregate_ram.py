@@ -50,7 +50,7 @@ class AggregateRamConstraint(ram_constraint.RamConstraint):
                         {'num_values': num_values})
 
         try:
-            ratio = float(min(aggregate_vals))
+            ratio = min(map(float, aggregate_vals))
         except ValueError as e:
             LOG.warning(_("Could not decode ram_allocation_ratio: '%s'"), e)
             ratio = CONF.ram_allocation_ratio

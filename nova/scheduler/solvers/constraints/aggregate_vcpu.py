@@ -50,7 +50,7 @@ class AggregateVcpuConstraint(vcpu_constraint.VcpuConstraint):
                          {'num_values': num_values})
 
         try:
-            ratio = float(min(aggregate_vals))
+            ratio = min(map(float, aggregate_vals))
         except ValueError as e:
             LOG.warning(_("Could not decode cpu_allocation_ratio: '%s'"), e)
             ratio = CONF.cpu_allocation_ratio
