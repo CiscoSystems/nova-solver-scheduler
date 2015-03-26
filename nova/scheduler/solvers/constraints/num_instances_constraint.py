@@ -40,8 +40,8 @@ class NumInstancesConstraint(constraints.BaseLinearConstraint):
         max_instances = CONF.max_instances_per_host
 
         for i in xrange(num_hosts):
-            num_instances = hosts[i].num_instances
-            acceptable_instance_num = max_instances - num_instances
+            num_host_instances = hosts[i].num_instances
+            acceptable_instance_num = max_instances - num_host_instances
 
             if acceptable_instance_num <= 0:
                 for j in xrange(num_instances):
