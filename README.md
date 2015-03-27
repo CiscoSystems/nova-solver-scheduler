@@ -238,6 +238,8 @@ Configuration Details
 Here we list a few constraints that can be configured, we will update this part and add more details soon.  
 To enable them, edit the configuration option 'scheduler_solver_constraints' under the '[solver_scheduler]' section of the nova configuration file.  
 
+* **Constraint options**  
+
     - **ActiveHostConstraint**  
         By enabling this constraint, only enabled and operational hosts are allowed to be selected.  
         Normally this constraint should always be enabled.  
