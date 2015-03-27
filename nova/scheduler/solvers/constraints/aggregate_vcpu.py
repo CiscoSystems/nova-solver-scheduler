@@ -15,6 +15,7 @@
 
 from oslo.config import cfg
 
+from nova import db
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers.constraints import vcpu_constraint

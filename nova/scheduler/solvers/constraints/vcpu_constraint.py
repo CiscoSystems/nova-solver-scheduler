@@ -56,7 +56,7 @@ class VcpuConstraint(constraints.BaseLinearConstraint):
                 vcpus_total = hosts[i].vcpus_total * cpu_allocation_ratio
                 usable_vcpus = vcpus_total - hosts[i].vcpus_used
 
-            if usable_vcpus < requested_vcpus:
+            if usable_vcpus < instance_vcpus:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
@@ -65,13 +65,13 @@ class VcpuConstraint(constraints.BaseLinearConstraint):
                 LOG.debug(_("%(host)s does not have %(requested)s usable "
                             "vcpus, it only has %(usable)s usable vcpus."),
                             {'host': hosts[i],
-                            'requested': requested_vcpus,
+                            'requested': instance_vcpus,
                             'usable': usable_vcpus})
             else:
                 self.variables.append(
                         [var_matrix[i][j] for j in range(num_instances)])
                 self.coefficients.append(
-                        [requested_vcpus for j in range(num_instances)])
+                        [instance_vcpus for j in range(num_instances)])
                 self.constants.append(usable_vcpus)
                 self.operators.append('<=')
 

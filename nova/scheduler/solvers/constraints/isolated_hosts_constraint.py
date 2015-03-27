@@ -17,7 +17,7 @@ from nova.scheduler.filters import isolated_hosts_filter
 from nova.scheduler.solvers import constraints
 
 
-class IsolatedHostsConsrtaint(constraints.BaseLinearConstraint):
+class IsolatedHostsConstraint(constraints.BaseLinearConstraint):
     """Keep specified images to selected hosts."""
 
     def _generate_components(self, variables, hosts, filter_properties):
@@ -26,9 +26,9 @@ class IsolatedHostsConsrtaint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
+        host_filter = isolated_hosts_filter.IsolatedHostsFilter()
         for i in xrange(num_hosts):
-            host_passes = isolated_hosts_filter.IsolatedHostsFilter().\
-                                    host_passes(hosts[i],filter_properties)
+            host_passes = host_filter.host_passes(hosts[i],filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])

@@ -28,8 +28,9 @@ class SameHostConstraint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
+        host_filter = affinity_filter.SameHostFilter()
         for i in xrange(num_hosts):
-            host_passes = affinity_filter.SameHostFilter().host_passes(
+            host_passes = host_filter.host_passes(
                                                 hosts[i], filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):
@@ -48,8 +49,9 @@ class DifferentHostConstraint(constraints.BaseLinearConstraint):
 
         var_matrix = variables.host_instance_matrix
 
+        host_filter = affinity_filter.DifferentHostFilter()
         for i in xrange(num_hosts):
-            host_passes = affinity_filter.DifferentHostFilter().host_passes(
+            host_passes = host_filter.host_passes(
                                                 hosts[i], filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):

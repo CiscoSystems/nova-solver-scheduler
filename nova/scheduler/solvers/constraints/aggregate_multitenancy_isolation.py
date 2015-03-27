@@ -17,7 +17,7 @@ from nova.scheduler.filters import aggregate_multitenancy_isolation
 from nova.scheduler.solvers import constraints
 
 
-class AggregateMultitenancyIsolationConstraint(
+class AggregateMultiTenancyIsolationConstraint(
                                             constraints.BaseLinearConstraint):
     """Isolate tenants in specific aggregates."""
 
@@ -27,10 +27,10 @@ class AggregateMultitenancyIsolationConstraint(
 
         var_matrix = variables.host_instance_matrix
 
+        host_filter = aggregate_multitenancy_isolation.\
+                            AggregateMultiTenancyIsolation()
         for i in xrange(num_hosts):
-            host_passes = aggregate_multitenancy_isolation.\
-                            AggregateMultitenancyIsolation().host_passes(
-                                                hosts[i], filter_properties)
+            host_passes = host_filter.host_passes(hosts[i], filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])

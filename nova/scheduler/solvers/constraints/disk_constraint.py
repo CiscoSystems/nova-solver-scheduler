@@ -70,7 +70,7 @@ class DiskConstraint(constraints.BaseLinearConstraint):
                 self.variables.append(
                             [var_matrix[i][j] for j in range(num_instances)])
                 self.coefficients.append(
-                    [requested_disk for j in range(num_instance)])
+                    [requested_disk for j in range(num_instances)])
                 self.constants.append(usable_disk_mb)
                 self.operators.append('<=')
 

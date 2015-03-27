@@ -27,10 +27,10 @@ class AggregateImagePropertiesIsolationConstraint(
 
         var_matrix = variables.host_instance_matrix
 
+        host_filter = aggregate_image_properties_isolation.\
+                            AggregateImagePropertiesIsolation()
         for i in xrange(num_hosts):
-            host_passes = aggregate_image_properties_isolation.\
-                            AggregateImagePropertiesIsolation().host_passes(
-                                                hosts[i], filter_properties)
+            host_passes = host_filter.host_passes(hosts[i], filter_properties)
             if not host_passes:
                 for j in xrange(num_instances):
                     self.variables.append([var_matrix[i][j]])

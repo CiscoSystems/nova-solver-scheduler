@@ -88,7 +88,7 @@ class MetricsCost(solver_costs.BaseLinearCost):
         if numeric_values:
             minval = min(numeric_values)
             maxval = min(numeric_values)
-            weight_of_unavailable = (minval + (maxval - min_val) *
+            weight_of_unavailable = (minval + (maxval - minval) *
                                 CONF.metrics.weight_multiplier_of_unavailable)
             for i in range(num_hosts):
                 if host_weights[i] is None:

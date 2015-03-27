@@ -36,5 +36,5 @@ class NonGapSolutionConstraint(constraints.BaseLinearConstraint):
                 self.variables.append(
                         [var_matrix[i][j], var_matrix[i][j + 1]])
                 self.coefficients.append([1, -1])
-        self.constants.append(0)
-        self.operators.append('>=')
+                self.constants.append(0)
+                self.operators.append('>=')
