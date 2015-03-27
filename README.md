@@ -11,7 +11,7 @@ Requirements
 Installation
 ------------
 
-In the current stage, we provide a manual way to install the solver-scheduler code to existing nova directory. In this section, we will aldo guide you through installing the solver scheduler with the minimum configuration. For instructions of configuring a fully functional solver-scheduler, please check out the next sections.  
+In the current stage, we provide a manual way to install the solver-scheduler code to existing nova directory. In this section, we will also guide you through installing the solver scheduler with the minimum configuration. For instructions of configuring a fully functional solver-scheduler, please check out the next sections.  
 Please make sure that you have nova Icehouse already installed on the machine.  
 
 
@@ -34,7 +34,7 @@ Please make sure that you have nova Icehouse already installed on the machine.
       cp -r nova-solver-scheduler/nova $NOVA_PARENT_DIR
       ```  
       (replace the $NOVA_PARENT_DIR with actual directory name. eg. /usr/local/lib/python2.7/site-packages/)  
-      This will add solver-scheduler codes to existing nova directory. The files in nova-solver-scheduler/nova do not overlap with existing nova files, therefore nothing should be overriden. We list below the files and directories to be copied, just in case.
+      This will add solver-scheduler codes to existing nova directory. The files in nova-solver-scheduler/nova do not overlap with existing nova files, therefore nothing should be overridden. We list below the files and directories to be copied, just in case.
 
     - Update the nova configuration file (e.g. /etc/nova/nova.conf) with the minimum option below. If the option already exists, modify its value, otherwise add it to the config file. Check the "Configurations" section below for a full configuration guide.  
       ```
