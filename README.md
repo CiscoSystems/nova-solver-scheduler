@@ -34,7 +34,7 @@ Please make sure that you have nova Icehouse already installed on the machine.
       cp -r nova-solver-scheduler/nova $NOVA_PARENT_DIR
       ```  
       (replace the $NOVA_PARENT_DIR with actual directory name. eg. /usr/local/lib/python2.7/site-packages/)  
-      This will add solver-scheduler codes to existing nova directory. The files in nova-solver-scheduler/nova do not overlap with existing nova files, therefore nothing should be overridden. We list below the files and directories to be copied, just in case.
+      This will add solver-scheduler codes to existing nova directory. The files in nova-solver-scheduler/nova do not overlap with existing nova files, therefore nothing should be overridden. We list below the files and directories which will be copied, just in case you want to double check.
 
     - Update the nova configuration file (e.g. /etc/nova/nova.conf) with the minimum option below. If the option already exists, modify its value, otherwise add it to the config file. Check the "Configurations" section below for a full configuration guide.  
       ```
@@ -51,7 +51,11 @@ Please make sure that you have nova Icehouse already installed on the machine.
 
 * **Uninstallation**  
 
-    - If you need to switch to other scheduler, simply open the nova configuration file and edit the option ```scheduler_driver```  (the default: ```scheduler_driver=nova.scheduler.filter_scheduler.FilterScheduler```), then restart nova-scheduler.  
+    - If you need to switch to other scheduler, simply open the nova configuration file and edit the option ```scheduler_driver``` and ```scheduler_host_manager```, then restart nova-scheduler.  e.g., 
+    ```
+    scheduler_driver=nova.scheduler.filter_scheduler.FilterScheduler
+    scheduler_host_manager=nova.scheduler.host_manager.HostManager
+    ```  
 
     - To remove all codes of solver-scheduler, manually delete the files/directories listed below from the nova directory.  
 
@@ -93,7 +97,7 @@ scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler
 #
 
 # The scheduler host manager class to use (string value)
-scheduler_host_manager=nova.scheduler.host_manager.HostManager
+scheduler_host_manager=nova.scheduler.host_manager.SolverSchedulerHostManager
 
 #
 # Options defined in nova.scheduler.filters.core_filter
