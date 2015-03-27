@@ -31,7 +31,7 @@ ram_cost_opts = [
         cfg.FloatOpt('ram_cost_multiplier',
                      default=1.0,
                      help='Multiplier used for ram costs. Negative '
-                          'numbers mean to spread vs stack.'),
+                          'numbers mean to stack vs spread.'),
 ]
 
 CONF = cfg.CONF

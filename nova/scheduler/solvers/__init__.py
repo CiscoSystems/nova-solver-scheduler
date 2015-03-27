@@ -28,7 +28,8 @@ scheduler_solver_opts =[
                     help='Which cost matrices to use in the '
                          'scheduler solver.'),
         cfg.ListOpt('scheduler_solver_constraints',
-                    default=['NonTrivialSolutionConstraint',
+                    default=['ActiveHostsConstraint',
+                            'NonTrivialSolutionConstraint',
                             'ValidSolutionConstraint'],
                     help='Which constraints to use in scheduler solver'),
 ]
