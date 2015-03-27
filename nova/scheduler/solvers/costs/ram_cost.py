@@ -59,7 +59,7 @@ class RamCost(solver_costs.BaseLinearCost):
         self.variables = [var_matrix[i][j] for i in range(num_hosts)
                                             for j in range(num_instances)]
 
-        coeff_matrix = [[(-hosts[i].free_ram_mb + requested_ram * (j + 1))
+        coeff_matrix = [[(-hosts[i].free_ram_mb + requested_ram * j)
                     for j in range(num_instances)] for i in range(num_hosts)]
         self.coefficients = [coeff_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]
