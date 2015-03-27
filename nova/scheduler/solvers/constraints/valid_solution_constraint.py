@@ -16,7 +16,7 @@
 from nova.scheduler.solvers import constraints
 
 
-class NonGapSolutionConstraint(constraints.BaseLinearConstraint):
+class ValidSolutionConstraint(constraints.BaseLinearConstraint):
     """The constraint must be configured when using spread/stack featured
     costs, e.g. RAM cost. It ensures that all '1's appear in front of any '0'
     in each row of the host-instance matrix solution.

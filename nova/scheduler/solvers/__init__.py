@@ -29,7 +29,7 @@ scheduler_solver_opts =[
                          'scheduler solver.'),
         cfg.ListOpt('scheduler_solver_constraints',
                     default=['NonTrivialSolutionConstraint',
-                            'NonGapSolutionConstraint'],
+                            'ValidSolutionConstraint'],
                     help='Which constraints to use in scheduler solver'),
 ]
 
