@@ -39,7 +39,7 @@ metrics_cost_opts = [
 
 metrics_weight_opts = [
        cfg.FloatOpt('weight_multiplier_of_unavailable',
-                     default=float(-1),
+                     default=(-1.0),
                      help='If any one of the metrics set by weight_setting '
                           'is unavailable, the metric weight of the host '
                           'will be set to (minw + (maxw - minw) * m), '
@@ -87,7 +87,7 @@ class MetricsCost(solver_costs.BaseLinearCost):
                 numeric_values.append(metric_sum)
         if numeric_values:
             minval = min(numeric_values)
-            maxval = min(numeric_values)
+            maxval = max(numeric_values)
             weight_of_unavailable = (minval + (maxval - minval) *
                                 CONF.metrics.weight_multiplier_of_unavailable)
             for i in range(num_hosts):
