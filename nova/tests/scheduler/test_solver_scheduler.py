@@ -172,6 +172,9 @@ class SolverSchedulerTestCase(test_scheduler.SchedulerTestCase):
         """Make sure there's nothing glaringly wrong with _schedule()
         by doing a happy day pass through.
         """
+        self.flags(scheduler_solver_constraints=[
+                    'NonTrivialSolutionConstraint',
+                    'ValidHostsConstraint'], group='solver_scheduler')
 
         sched = fakes.FakeSolverScheduler()
         fake_context = context.RequestContext('user', 'project',
@@ -301,7 +304,9 @@ class SolverSchedulerTestCase(test_scheduler.SchedulerTestCase):
     def test_schedule_chooses_best_host(self):
         """The host with the highest free_ram_mb will be chosen!
         """
-
+        self.flags(scheduler_solver_constraints=[
+                    'NonTrivialSolutionConstraint',
+                    'ValidHostsConstraint'], group='solver_scheduler')
         self.flags(ram_weight_multiplier=1)
 
         sched = fakes.FakeSolverScheduler()
@@ -349,6 +354,9 @@ class SolverSchedulerTestCase(test_scheduler.SchedulerTestCase):
         Similar to the _schedule tests, this just does a happy path test to
         ensure there is nothing glaringly wrong.
         """
+        self.flags(scheduler_solver_constraints=[
+                    'NonTrivialSolutionConstraint',
+                    'ValidHostsConstraint'], group='solver_scheduler')
 
         sched = fakes.FakeSolverScheduler()
         fake_context = context.RequestContext('user', 'project',
