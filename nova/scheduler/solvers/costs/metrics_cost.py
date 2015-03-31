@@ -30,6 +30,7 @@ from oslo.config import cfg
 
 from nova.scheduler import utils
 from nova.scheduler.solvers import costs as solver_costs
+from nova.scheduler.solvers.costs import utils as cost_utils
 
 metrics_cost_opts = [
         cfg.FloatOpt('metrics_cost_multiplier',
@@ -102,5 +103,6 @@ class MetricsCost(solver_costs.BaseLinearCost):
 
         coeff_matrix = [[(-host_weights[i]) for j in range(num_instances)]
                                                     for i in range(num_hosts)]
+        coeff_matrix = cost_utils.normalize_cost_matrix(coeff_matrix)
         self.coefficients = [coeff_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]

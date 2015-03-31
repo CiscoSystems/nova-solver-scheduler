@@ -172,7 +172,8 @@ class PulpSolverTestCase(test.NoDBTestCase):
     def test_solve_one_cost_default_constraint(self):
         self.pulp_solver.cost_classes = [FakeCostClass1]
         self.pulp_solver.constraint_classes = [constraints.\
-                non_trivial_solution_constraint.NonTrivialSolutionConstraint]
+                non_trivial_solution_constraint.NonTrivialSolutionConstraint,
+                constraints.valid_solution_constraint.ValidSolutionConstraint]
 
         hosts = self.fake_hosts[0:4]
         filter_properties = {
@@ -199,7 +200,8 @@ class PulpSolverTestCase(test.NoDBTestCase):
     def test_solve_multi_costs_default_constraint(self):
         self.pulp_solver.cost_classes = [FakeCostClass1, FakeCostClass2]
         self.pulp_solver.constraint_classes = [constraints.\
-                non_trivial_solution_constraint.NonTrivialSolutionConstraint]
+                non_trivial_solution_constraint.NonTrivialSolutionConstraint,
+                constraints.valid_solution_constraint.ValidSolutionConstraint]
 
         hosts = self.fake_hosts[0:4]
         filter_properties = {
@@ -212,17 +214,17 @@ class PulpSolverTestCase(test.NoDBTestCase):
                 mock.patch.object(FakeCostClass2, 'cost_multiplier')) as (
                 fake_cost_1_multiplier, fake_cost_2_multiplier):
             fake_cost_1_multiplier.return_value = 1.0
-            fake_cost_2_multiplier.return_value = (-0.5)
+            fake_cost_2_multiplier.return_value = (1.0)
             # resulting summed cost matrix will be:
-            # [[0.0, 1/6, 1/3, 0.5],
-            #  [0.0, 1/6, 1/3, 0.5],
-            #  [0.0, 1/6, 1/3, 0.5],
-            #  [0.0, 1/6, 1/3, 0.5]]
+            # [[0.0, 1.0, 2.0, 3.0],
+            #  [2.0, 3.0, 4.0, 5.0],
+            #  [4.0, 5.0, 6.0, 7.0],
+            #  [6.0, 7.0, 8.0, 9.0]]
             expected_result = [
                     (hosts[0], 'fake_uuid_0'),
-                    (hosts[1], 'fake_uuid_1'),
-                    (hosts[2], 'fake_uuid_2'),
-                    (hosts[3], 'fake_uuid_3')]
+                    (hosts[0], 'fake_uuid_1'),
+                    (hosts[0], 'fake_uuid_2'),
+                    (hosts[1], 'fake_uuid_3')]
             result = self.pulp_solver.solve(hosts, filter_properties)
             self.assertEqual(set(expected_result), set(result))
 
@@ -230,7 +232,8 @@ class PulpSolverTestCase(test.NoDBTestCase):
         self.pulp_solver.cost_classes = [FakeCostClass1, FakeCostClass2]
         self.pulp_solver.constraint_classes = [FakeConstraintClass1,
                 constraints.non_trivial_solution_constraint.\
-                NonTrivialSolutionConstraint]
+                NonTrivialSolutionConstraint,
+                constraints.valid_solution_constraint.ValidSolutionConstraint]
 
         hosts = self.fake_hosts[0:4]
         filter_properties = {
@@ -262,7 +265,8 @@ class PulpSolverTestCase(test.NoDBTestCase):
         self.pulp_solver.cost_classes = [FakeCostClass1, FakeCostClass2]
         self.pulp_solver.constraint_classes = [FakeConstraintClass1,
                 FakeConstraintClass2, constraints.\
-                non_trivial_solution_constraint.NonTrivialSolutionConstraint]
+                non_trivial_solution_constraint.NonTrivialSolutionConstraint,
+                constraints.valid_solution_constraint.ValidSolutionConstraint]
 
         hosts = self.fake_hosts[0:4]
         filter_properties = {

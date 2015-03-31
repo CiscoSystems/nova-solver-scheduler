@@ -90,12 +90,18 @@ class TestMetricsCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        -512, -512, -512, -1024, -1024, -1024,
+        #        -3072, -3072, -3072, -8192, -8192, -8192]
         expected_cost_coeffs = [
-                -512, -512, -512, -1024, -1024, -1024,
-                -3072, -3072, -3072, -8192, -8192, -8192]
+                -0.0625, -0.0625, -0.0625, -0.125, -0.125, -0.125,
+                -0.375, -0.375, -0.375, -1.0, -1.0, -1.0]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)
+        round_cost_values = lambda x: round(x, 4)
+        expected_cost_coeffs = map(round_cost_values, expected_cost_coeffs)
+        cost_coeffs = map(round_cost_values, cost_coeffs)
         self.assertEqual(expected_cost_vars, cost_vars)
         self.assertEqual(expected_cost_coeffs, cost_coeffs)
 
@@ -117,9 +123,12 @@ class TestMetricsCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        -1.0512, -1.0512, -1.0512, -2.1024, -2.1024, -2.1024,
+        #        -1.3072, -1.3072, -1.3072, -0.8192, -0.8192, -0.8192]
         expected_cost_coeffs = [
-                -1.0512, -1.0512, -1.0512, -2.1024, -2.1024, -2.1024,
-                -1.3072, -1.3072, -1.3072, -0.8192, -0.8192, -0.8192]
+                -0.5, -0.5, -0.5, -1.0, -1.0, -1.0,
+                -0.6218, -0.6218, -0.6218, -0.3896, -0.3896, -0.3896]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)
@@ -147,12 +156,18 @@ class TestMetricsCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        512, 512, 512, 1024, 1024, 1024,
+        #        3072, 3072, 3072, 8192, 8192, 8192]
         expected_cost_coeffs = [
-                512, 512, 512, 1024, 1024, 1024,
-                3072, 3072, 3072, 8192, 8192, 8192]
+                0.0625, 0.0625, 0.0625, 0.125, 0.125, 0.125,
+                0.375, 0.375, 0.375, 1.0, 1.0, 1.0]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)
+        round_cost_values = lambda x: round(x, 4)
+        expected_cost_coeffs = map(round_cost_values, expected_cost_coeffs)
+        cost_coeffs = map(round_cost_values, cost_coeffs)
         self.assertEqual(expected_cost_vars, cost_vars)
         self.assertEqual(expected_cost_coeffs, cost_coeffs)
 
@@ -174,9 +189,12 @@ class TestMetricsCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        -0.0512, -0.0512, -0.0512, -0.1024, -0.1024, -0.1024,
+        #        -0.3072, -0.3072, -0.3072, -0.8192, -0.8192, -0.8192]
         expected_cost_coeffs = [
-                -0.0512, -0.0512, -0.0512, -0.1024, -0.1024, -0.1024,
-                -0.3072, -0.3072, -0.3072, -0.8192, -0.8192, -0.8192]
+                -0.0625, -0.0625, -0.0625, -0.125, -0.125, -0.125,
+                -0.375, -0.375, -0.375, -1.0, -1.0, -1.0]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)
@@ -204,9 +222,12 @@ class TestMetricsCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        -0.0512, -0.0512, -0.0512, -0.1024, -0.1024, -0.1024,
+        #        -0.3072, -0.3072, -0.3072, -0.8192, -0.8192, -0.8192]
         expected_cost_coeffs = [
-                -0.0512, -0.0512, -0.0512, -0.1024, -0.1024, -0.1024,
-                -0.3072, -0.3072, -0.3072, -0.8192, -0.8192, -0.8192]
+                -0.0625, -0.0625, -0.0625, -0.125, -0.125, -0.125,
+                -0.375, -0.375, -0.375, -1.0, -1.0, -1.0]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)
@@ -233,9 +254,12 @@ class TestMetricsCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        5.6672, 5.6672, 5.6672, 5.6672, 5.6672, 5.6672,
+        #        1.9232, 1.9232, 1.9232, 3.7952, 3.7952, 3.7952]
         expected_cost_coeffs = [
-                5.6672, 5.6672, 5.6672, 5.6672, 5.6672, 5.6672,
-                1.9232, 1.9232, 1.9232, 3.7952, 3.7952, 3.7952]
+                1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                0.3394, 0.3394, 0.3394, 0.6697, 0.6697, 0.6697]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)

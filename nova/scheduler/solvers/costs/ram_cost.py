@@ -26,6 +26,7 @@ from oslo.config import cfg
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler.solvers import costs as solver_costs
+from nova.scheduler.solvers.costs import utils
 
 ram_cost_opts = [
         cfg.FloatOpt('ram_cost_multiplier',
@@ -59,7 +60,18 @@ class RamCost(solver_costs.BaseLinearCost):
         self.variables = [var_matrix[i][j] for i in range(num_hosts)
                                             for j in range(num_instances)]
 
-        coeff_matrix = [[(-hosts[i].free_ram_mb + requested_ram * j)
+        if requested_ram == 0:
+            coeff_matrix = [
+                    [(-hosts[i].free_ram_mb) for j in range(num_instances)]
+                    for i in range(num_hosts)]
+        else:
+            # we use int approximation here to avoid scaling problems after
+            # normalization, in the case that the free ram in all hosts are
+            # of very small values
+            coeff_matrix = [
+                    [-int(hosts[i].free_ram_mb / requested_ram) + j
                     for j in range(num_instances)] for i in range(num_hosts)]
+
+        coeff_matrix = utils.normalize_cost_matrix(coeff_matrix)
         self.coefficients = [coeff_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]

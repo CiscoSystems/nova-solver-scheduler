@@ -23,7 +23,6 @@ from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.scheduler import solvers as scheduler_solver
 from nova import solver_scheduler_exception as exception
-from nova import weights
 
 pulp_solver_opts =[
         cfg.IntOpt('pulp_solver_timeout_seconds',
@@ -110,9 +109,8 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
             var_list, coeff_list = cost_object.get_components(
                                     self.variables, hosts, filter_properties)
             cost_variables.extend(var_list)
-            normalized_costs = list(weights.normalize(coeff_list))
             cost_coefficients.extend([val * cost_object.cost_multiplier()
-                                                for val in normalized_costs])
+                                                    for val in coeff_list])
             LOG.debug(_("cost coeffs of %(name)s is: %(value)s") %
                     {"name": cost_object.__class__.__name__,
                     "value": coeff_list})

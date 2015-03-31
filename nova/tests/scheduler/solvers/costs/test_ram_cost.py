@@ -71,7 +71,7 @@ class TestRamCost(test.NoDBTestCase):
         fake_filter_properties = {
                 'context': self.context.elevated(),
                 'num_instances': 3,
-                'instance_type': {'memory_mb': 128},
+                'instance_type': {'memory_mb': 1024},
                 'instance_uuids': ['fake_uuid_%s' % x for x in range(3)]}
 
         fake_cost = self.cost_classes[0]()
@@ -79,11 +79,17 @@ class TestRamCost(test.NoDBTestCase):
         expected_cost_vars = [
                 'h0i0', 'h0i1', 'h0i2', 'h1i0', 'h1i1', 'h1i2',
                 'h2i0', 'h2i1', 'h2i2', 'h3i0', 'h3i1', 'h3i2']
+        #expected_cost_coeffs = [
+        #        -512, -384, -256, -1024, -896, -768,
+        #        -3072, -2944, -2816, -8192, -8064, -7936]
         expected_cost_coeffs = [
-                -512, -384, -256, -1024, -896, -768,
-                -3072, -2944, -2816, -8192, -8064, -7936]
+                0.0, 0.125, 0.25, -0.125, 0, 0.125,
+                -0.375, -0.25, -0.125, -1.0, -0.875, -0.75]
 
         cost_vars, cost_coeffs = fake_cost.get_components(
                         fake_variables, fake_hosts, fake_filter_properties)
+        round_cost_values = lambda x: round(x, 4)
+        expected_cost_coeffs = map(round_cost_values, expected_cost_coeffs)
+        cost_coeffs = map(round_cost_values, cost_coeffs)
         self.assertEqual(expected_cost_vars, cost_vars)
         self.assertEqual(expected_cost_coeffs, cost_coeffs)
