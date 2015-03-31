@@ -1,1 +1,1 @@
-pulp>=1.4.6
+coinor.pulp>=1.0.4

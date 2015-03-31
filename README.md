@@ -6,7 +6,7 @@ Solver Scheduler is an Openstack Nova Scheduler driver that provides a smarter, 
 Requirements
 ------------
 
-* pulp>=1.4.6
+* coinor.pulp>=1.0.4
 
 Installation
 ------------
@@ -16,9 +16,9 @@ Please make sure that you have nova Icehouse already installed on the machine.
 
 
 * **Prerequisites**  
-    - install the python package: pulp >= 1.4.6  
+    - install the python package: coinor.pulp >= 1.0.4  
       ```
-      pip install pulp
+      pip install coinor.pulp
       ```  
 
 * **Manual Installation**  
