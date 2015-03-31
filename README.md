@@ -18,7 +18,7 @@ Please make sure that you have nova Icehouse already installed on the machine.
 * **Prerequisites**  
     - install the python package: coinor.pulp >= 1.0.4  
       ```
-      pip install coinor.pulp
+      pip install 'coinor.pulp>=1.0.4'
       ```  
 
 * **Manual Installation**  
