@@ -33,6 +33,9 @@ class BaseLinearConstraint(BaseConstraint):
     """Base class of LP constraint."""
 
     def __init__(self):
+        self._reset()
+
+    def _reset(self):
         self.variables = []
         self.coefficients = []
         self.constants = []
@@ -43,6 +46,7 @@ class BaseLinearConstraint(BaseConstraint):
         pass
 
     def get_components(self, variables, hosts, filter_properties):
+        self._reset()
         self._generate_components(variables, hosts, filter_properties)
         return (self.variables, self.coefficients, self.constants,
                 self.operators)
