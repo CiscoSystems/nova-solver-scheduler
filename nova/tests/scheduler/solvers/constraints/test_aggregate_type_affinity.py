@@ -41,8 +41,9 @@ class TestAggregateTypeAffinityConstraint(test.NoDBTestCase):
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1', {})
         self.fake_hosts = [host1, host2]
 
-    @mock.patch('nova.scheduler.filters.'
-                'type_filter.AggregateTypeAffinityFilter')
+    @mock.patch('nova.scheduler.solvers.constraints.'
+                'aggregate_type_affinity.AggregateTypeAffinityConstraint.'
+                'host_filter_cls')
     def test_aggregate_type_affinity_get_components(self, mock_filter_cls):
         expected_cons_vars = [['h1i0'], ['h1i1'], ['h1i2']]
         expected_cons_coeffs = [[1], [1], [1]]

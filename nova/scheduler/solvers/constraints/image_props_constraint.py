@@ -17,7 +17,7 @@ from nova.scheduler.filters import image_props_filter
 from nova.scheduler.solvers import constraints
 
 
-class ImagePropertiesConstraint(constraints.BaseLinearConstraint):
+class ImagePropertiesConstraint(constraints.BaseFilterConstraint):
     """Select compute nodes that satisfy instance image properties.
 
     The ImagePropertiesConstraint selects compute nodes that satisfy
@@ -25,19 +25,4 @@ class ImagePropertiesConstraint(constraints.BaseLinearConstraint):
     specified on the instance's image properties. Image properties are
     contained in the image dictionary in the request_spec.
     """
-
-    def _generate_components(self, variables, hosts, filter_properties):
-        num_hosts = len(hosts)
-        num_instances = filter_properties.get('num_instances')
-
-        var_matrix = variables.host_instance_matrix
-
-        host_filter = image_props_filter.ImagePropertiesFilter()
-        for i in xrange(num_hosts):
-            host_passes = host_filter.host_passes(hosts[i], filter_properties)
-            if not host_passes:
-                for j in xrange(num_instances):
-                    self.variables.append([var_matrix[i][j]])
-                    self.coefficients.append([1])
-                    self.constants.append(0)
-                    self.operators.append('==')
+    host_filter_cls = image_props_filter.ImagePropertiesFilter

@@ -17,45 +17,13 @@ from nova.scheduler.filters import affinity_filter
 from nova.scheduler.solvers import constraints
 
 
-class SameHostConstraint(constraints.BaseLinearConstraint):
+class SameHostConstraint(constraints.BaseFilterConstraint):
     """Schedule the instance on the same host as another instance in a set
     of instances.
     """
-
-    def _generate_components(self, variables, hosts, filter_properties):
-        num_hosts = len(hosts)
-        num_instances = filter_properties.get('num_instances')
-
-        var_matrix = variables.host_instance_matrix
-
-        host_filter = affinity_filter.SameHostFilter()
-        for i in xrange(num_hosts):
-            host_passes = host_filter.host_passes(
-                                                hosts[i], filter_properties)
-            if not host_passes:
-                for j in xrange(num_instances):
-                    self.variables.append([var_matrix[i][j]])
-                    self.coefficients.append([1])
-                    self.constants.append(0)
-                    self.operators.append('==')
+    host_filter_cls = affinity_filter.SameHostFilter
 
 
-class DifferentHostConstraint(constraints.BaseLinearConstraint):
+class DifferentHostConstraint(constraints.BaseFilterConstraint):
     """Schedule the instance on a different host from a set of instances."""
-
-    def _generate_components(self, variables, hosts, filter_properties):
-        num_hosts = len(hosts)
-        num_instances = filter_properties.get('num_instances')
-
-        var_matrix = variables.host_instance_matrix
-
-        host_filter = affinity_filter.DifferentHostFilter()
-        for i in xrange(num_hosts):
-            host_passes = host_filter.host_passes(
-                                                hosts[i], filter_properties)
-            if not host_passes:
-                for j in xrange(num_instances):
-                    self.variables.append([var_matrix[i][j]])
-                    self.coefficients.append([1])
-                    self.constants.append(0)
-                    self.operators.append('==')
+    host_filter_cls = affinity_filter.DifferentHostFilter

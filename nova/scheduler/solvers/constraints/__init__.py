@@ -18,6 +18,7 @@ Constraints for scheduler constraint solvers
 """
 
 from nova.compute import api as compute
+from nova.scheduler import filters
 from nova import loadables
 
 
@@ -50,6 +51,33 @@ class BaseLinearConstraint(BaseConstraint):
         self._generate_components(variables, hosts, filter_properties)
         return (self.variables, self.coefficients, self.constants,
                 self.operators)
+
+
+class BaseFilterConstraint(BaseLinearConstraint):
+    """Base class for constraints that correspond to 1-time host filters."""
+
+    # override this in sub classes
+    host_filter_cls = filters.BaseHostFilter
+
+    def __init__(self):
+        super(BaseFilterConstraint, self).__init__()
+        self.host_filter = self.host_filter_cls()
+
+    def _generate_components(self, variables, hosts, filter_properties):
+        num_hosts = len(hosts)
+        num_instances = filter_properties.get('num_instances')
+
+        var_matrix = variables.host_instance_matrix
+
+        for i in xrange(num_hosts):
+            host_passes = self.host_filter.host_passes(
+                                            hosts[i], filter_properties)
+            if not host_passes:
+                for j in xrange(num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')
 
 
 class ConstraintHandler(loadables.BaseLoader):

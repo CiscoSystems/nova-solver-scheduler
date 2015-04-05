@@ -41,8 +41,9 @@ class TestComputeCapabilitiesConstraint(test.NoDBTestCase):
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1', {})
         self.fake_hosts = [host1, host2]
 
-    @mock.patch('nova.scheduler.filters.compute_capabilities_filter.'
-                'ComputeCapabilitiesFilter')
+    @mock.patch('nova.scheduler.solvers.constraints.'
+                'compute_capabilities_constraint.'
+                'ComputeCapabilitiesConstraint.host_filter_cls')
     def test_compute_capabilities_constraint_get_components(
                                                     self, mock_filter_cls):
         expected_cons_vars = [['h1i0'], ['h1i1'], ['h1i2']]

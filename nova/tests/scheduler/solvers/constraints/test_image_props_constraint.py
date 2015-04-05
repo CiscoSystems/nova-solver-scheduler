@@ -40,8 +40,9 @@ class TestImagePropsConstraint(test.NoDBTestCase):
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1', {})
         self.fake_hosts = [host1, host2]
 
-    @mock.patch('nova.scheduler.filters.'
-                'image_props_filter.ImagePropertiesFilter')
+    @mock.patch('nova.scheduler.solvers.constraints.'
+                'image_props_constraint.ImagePropertiesConstraint.'
+                'host_filter_cls')
     def test_image_props_constraint_get_components(self, mock_filter_cls):
         expected_cons_vars = [['h1i0'], ['h1i1'], ['h1i2']]
         expected_cons_coeffs = [[1], [1], [1]]

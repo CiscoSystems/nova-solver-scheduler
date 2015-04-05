@@ -41,8 +41,9 @@ class TestAggregateInstanceExtraSpecsConstraint(test.NoDBTestCase):
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1', {})
         self.fake_hosts = [host1, host2]
 
-    @mock.patch('nova.scheduler.filters.aggregate_instance_extra_specs.'
-                'AggregateInstanceExtraSpecsFilter')
+    @mock.patch('nova.scheduler.solvers.constraints.'
+                'aggregate_instance_extra_specs.'
+                'AggregateInstanceExtraSpecsConstraint.host_filter_cls')
     def test_aggregate_instance_extra_specs_get_components(
                                                     self, mock_filter_cls):
         expected_cons_vars = [['h1i0'], ['h1i1'], ['h1i2']]

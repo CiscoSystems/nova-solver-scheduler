@@ -17,26 +17,11 @@ from nova.scheduler.filters import availability_zone_filter
 from nova.scheduler.solvers import constraints
 
 
-class AggregateAvailabilityZoneConstraint(constraints.BaseLinearConstraint):
+class AggregateAvailabilityZoneConstraint(constraints.BaseFilterConstraint):
     """Selects Hosts by availability zone.
 
     Works with aggregate metadata availability zones, using the key
     'availability_zone'
     Note: in theory a compute node can be part of multiple availability_zones
     """
-
-    def _generate_components(self, variables, hosts, filter_properties):
-        num_hosts = len(hosts)
-        num_instances = filter_properties.get('num_instances')
-
-        var_matrix = variables.host_instance_matrix
-
-        host_filter = availability_zone_filter.AvailabilityZoneFilter()
-        for i in xrange(num_hosts):
-            host_passes = host_filter.host_passes(hosts[i], filter_properties)
-            if not host_passes:
-                for j in xrange(num_instances):
-                    self.variables.append([var_matrix[i][j]])
-                    self.coefficients.append([1])
-                    self.constants.append(0)
-                    self.operators.append('==')
+    host_filter_cls = availability_zone_filter.AvailabilityZoneFilter
