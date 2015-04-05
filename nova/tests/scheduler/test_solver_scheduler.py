@@ -174,7 +174,7 @@ class SolverSchedulerTestCase(test_scheduler.SchedulerTestCase):
         """
         self.flags(scheduler_solver_constraints=[
                     'NonTrivialSolutionConstraint',
-                    'ValidHostsConstraint'], group='solver_scheduler')
+                    'ValidSolutionConstraint'], group='solver_scheduler')
 
         sched = fakes.FakeSolverScheduler()
         fake_context = context.RequestContext('user', 'project',
