@@ -38,7 +38,7 @@ class TestDiskConstraint(test.NoDBTestCase):
                 'instance_uuids': ['fake_uuid_%s' % x for x in range(2)],
                 'num_instances': 2}
         host1 = fakes.FakeSolverSchedulerHostState('host1', 'node1',
-                {'free_disk_mb': 1 * 1024, 'total_usable_disk_gb': 1})
+                {'free_disk_mb': 1 * 1024, 'total_usable_disk_gb': 2})
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1',
                 {'free_disk_mb': 10 * 1024, 'total_usable_disk_gb': 12})
         host3 = fakes.FakeSolverSchedulerHostState('host3', 'node1',
@@ -47,11 +47,10 @@ class TestDiskConstraint(test.NoDBTestCase):
 
     def test_disk_constraint_get_components(self):
         self.flags(disk_allocation_ratio=1.0)
-        expected_cons_vars = [
-                ['h0i0'], ['h0i1'], ['h1i0', 'h1i1'], ['h2i0'], ['h2i1']]
-        expected_cons_coeffs = [[1], [1], [2560, 2560], [1], [1]]
-        expected_cons_consts = [0, 0, 10 * 1024, 0, 0]
-        expected_cons_ops = ['==', '==', '<=', '==', '==']
+        expected_cons_vars = [['h0i0'], ['h0i1'], ['h2i0'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1], [1], [1]]
+        expected_cons_consts = [0, 0, 0, 0]
+        expected_cons_ops = ['==', '==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))
@@ -62,11 +61,10 @@ class TestDiskConstraint(test.NoDBTestCase):
 
     def test_disk_constraint_get_components_oversubscribe(self):
         self.flags(disk_allocation_ratio=2.0)
-        expected_cons_vars = [
-                ['h0i0'], ['h0i1'], ['h1i0', 'h1i1'], ['h2i0', 'h2i1']]
-        expected_cons_coeffs = [[1], [1], [2560, 2560], [2560, 2560]]
-        expected_cons_consts = [0, 0, 22 * 1024, 7 * 1024]
-        expected_cons_ops = ['==', '==', '<=', '<=']
+        expected_cons_vars = [['h0i1']]
+        expected_cons_coeffs = [[1]]
+        expected_cons_consts = [0]
+        expected_cons_ops = ['==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))
@@ -74,6 +72,6 @@ class TestDiskConstraint(test.NoDBTestCase):
         self.assertEqual(expected_cons_coeffs, cons_coeffs)
         self.assertEqual(expected_cons_consts, cons_consts)
         self.assertEqual(expected_cons_ops, cons_ops)
-        self.assertEqual(1 * 2.0, self.fake_hosts[0].limits['disk_gb'])
+        self.assertEqual(2 * 2.0, self.fake_hosts[0].limits['disk_gb'])
         self.assertEqual(12 * 2.0, self.fake_hosts[1].limits['disk_gb'])
         self.assertEqual(6 * 2.0, self.fake_hosts[2].limits['disk_gb'])

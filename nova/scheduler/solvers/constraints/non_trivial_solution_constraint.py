@@ -31,8 +31,8 @@ class NonTrivialSolutionConstraint(constraints.BaseLinearConstraint):
         coeff_list = []
         for i in xrange(num_hosts):
             var_list.extend(
-                    [var_matrix[i][j] for j in range(num_instances)])
-            coeff_list.extend([1 for j in range(num_instances)])
+                    [var_matrix[i][j] for j in xrange(num_instances)])
+            coeff_list.extend([j + 1 for j in xrange(num_instances)])
         self.variables.append(var_list)
         self.coefficients.append(coeff_list)
         self.constants.append(num_instances)

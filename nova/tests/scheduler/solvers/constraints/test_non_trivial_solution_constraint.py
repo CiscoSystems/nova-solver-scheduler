@@ -44,7 +44,7 @@ class TestNonTrivialSolutionConstraint(test.NoDBTestCase):
     def test_non_trivial_solution_constraint_get_components(self):
         expected_cons_vars = [
                 ['h0i0', 'h0i1', 'h1i0', 'h1i1', 'h2i0', 'h2i1']]
-        expected_cons_coeffs = [[1, 1, 1, 1, 1, 1]]
+        expected_cons_coeffs = [[1, 2, 1, 2, 1, 2]]
         expected_cons_consts = [2]
         expected_cons_ops = ['==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (

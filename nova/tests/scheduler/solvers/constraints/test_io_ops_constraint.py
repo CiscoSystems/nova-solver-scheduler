@@ -36,7 +36,7 @@ class TestIoOpsConstraint(test.NoDBTestCase):
                 'instance_uuids': ['fake_uuid_%s' % x for x in range(2)],
                 'num_instances': 2}
         host1 = fakes.FakeSolverSchedulerHostState('host1', 'node1',
-                {'num_io_ops': 5})
+                {'num_io_ops': 6})
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1',
                 {'num_io_ops': 10})
         host3 = fakes.FakeSolverSchedulerHostState('host3', 'node1',
@@ -46,10 +46,10 @@ class TestIoOpsConstraint(test.NoDBTestCase):
     def test_io_ops_constraint_get_components(self):
         self.flags(max_io_ops_per_host=7)
         expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h1i0'], ['h1i1'], ['h2i0'], ['h2i1']]
-        expected_cons_coeffs = [[1, 1], [1], [1], [1], [1]]
-        expected_cons_consts = [2, 0, 0, 0, 0]
-        expected_cons_ops = ['<=', '==', '==', '==', '==']
+                ['h0i1'], ['h1i0'], ['h1i1'], ['h2i0'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1], [1], [1], [1]]
+        expected_cons_consts = [0, 0, 0, 0, 0]
+        expected_cons_ops = ['==', '==', '==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))
@@ -60,11 +60,10 @@ class TestIoOpsConstraint(test.NoDBTestCase):
 
     def test_io_ops_constraint_get_components2(self):
         self.flags(max_io_ops_per_host=15)
-        expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h1i0', 'h1i1'], ['h2i0'], ['h2i1']]
-        expected_cons_coeffs = [[1, 1], [1, 1], [1], [1]]
-        expected_cons_consts = [10, 5, 0, 0]
-        expected_cons_ops = ['<=', '<=', '==', '==']
+        expected_cons_vars = [['h2i0'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1]]
+        expected_cons_consts = [0, 0]
+        expected_cons_ops = ['==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))

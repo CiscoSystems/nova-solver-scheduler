@@ -41,22 +41,16 @@ class NumInstancesConstraint(constraints.BaseLinearConstraint):
 
         for i in xrange(num_hosts):
             num_host_instances = hosts[i].num_instances
-            acceptable_instance_num = max_instances - num_host_instances
-
-            if acceptable_instance_num <= 0:
-                for j in xrange(num_instances):
+            acceptable_num_instances = int(max_instances - num_host_instances)
+            if acceptable_num_instances < 0:
+                acceptable_num_instances = 0
+            if acceptable_num_instances < num_instances:
+                for j in xrange(acceptable_num_instances, num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
-                LOG.debug(_("%(host)s fails num_instances check: Max "
-                            "instances per host is set to %(max_inst)s"),
-                            {'host': hosts[i],
-                            'max_inst': max_instances})
-            else:
-                self.variables.append(
-                        [var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append(
-                        [1 for j in range(num_instances)])
-                self.constants.append(acceptable_instance_num)
-                self.operators.append('<=')
+            LOG.debug(_("%(host)s can accept %(num)s requested instances "
+                        "according to NumInstancesConstraint."),
+                        {'host': hosts[i],
+                        'num': acceptable_num_instances})

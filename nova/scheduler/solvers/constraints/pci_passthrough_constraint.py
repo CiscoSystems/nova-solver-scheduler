@@ -15,7 +15,11 @@
 
 import copy
 
+from nova.openstack.common.gettextutils import _
+from nova.openstack.common import log as logging
 from nova.scheduler.solvers import constraints
+
+LOG = logging.getLogger(__name__)
 
 
 class PciPassthroughConstraint(constraints.BaseLinearConstraint):
@@ -51,17 +55,24 @@ class PciPassthroughConstraint(constraints.BaseLinearConstraint):
 
         pci_requests = filter_properties.get('pci_requests')
         if not pci_requests:
+            LOG.warn(_("PciPassthroughConstraint check is skipped because "
+                        "requested instance PCI requests is unavailable."))
             return
 
         for i in xrange(num_hosts):
             host_pci_stats = copy.deepcopy(hosts[i].pci_stats)
-            acceptable_pci_requests_times = (
+            acceptable_num_instances = (
                     self._get_acceptable_pci_requests_times(num_instances,
                                                 pci_requests, host_pci_stats))
 
-            self.variables.append(
-                    [var_matrix[i][j] for j in range(num_instances)])
-            self.coefficients.append(
-                    [1 for j in range(num_instances)])
-            self.constants.append(acceptable_pci_requests_times)
-            self.operators.append('<=')
+            if acceptable_num_instances < num_instances:
+                for j in xrange(acceptable_num_instances, num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')
+
+            LOG.debug(_("%(host)s can accept %(num)s requested instances "
+                        "according to PciPassthroughConstraint."),
+                        {'host': hosts[i],
+                        'num': acceptable_num_instances})

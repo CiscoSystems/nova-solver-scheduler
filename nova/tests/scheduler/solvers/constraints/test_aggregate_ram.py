@@ -62,10 +62,10 @@ class TestAggregateRamConstraint(test.NoDBTestCase):
         agg_mock.side_effect = _agg_mock_side_effect
 
         expected_cons_vars = [
-                ['h0i0'], ['h0i1'], ['h1i0', 'h1i1'], ['h2i0'], ['h2i1']]
-        expected_cons_coeffs = [[1], [1], [1024, 1024], [1], [1]]
-        expected_cons_consts = [0, 0, 2560, 0, 0]
-        expected_cons_ops = ['==', '==', '<=', '==', '==']
+                ['h0i0'], ['h0i1'], ['h2i0'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1], [1], [1]]
+        expected_cons_consts = [0, 0, 0, 0]
+        expected_cons_ops = ['==', '==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))

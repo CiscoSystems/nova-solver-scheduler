@@ -38,18 +38,17 @@ class TestNumInstancesConstraint(test.NoDBTestCase):
         host1 = fakes.FakeSolverSchedulerHostState('host1', 'node1',
                 {'num_instances': 1})
         host2 = fakes.FakeSolverSchedulerHostState('host2', 'node1',
-                {'num_instances': 2})
+                {'num_instances': 4})
         host3 = fakes.FakeSolverSchedulerHostState('host3', 'node1',
                 {'num_instances': 5})
         self.fake_hosts = [host1, host2, host3]
 
     def test_num_instances_constraint_get_components(self):
         self.flags(max_instances_per_host=5)
-        expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h1i0', 'h1i1'], ['h2i0'], ['h2i1']]
-        expected_cons_coeffs = [[1, 1], [1, 1], [1], [1]]
-        expected_cons_consts = [4, 3, 0, 0]
-        expected_cons_ops = ['<=', '<=', '==', '==']
+        expected_cons_vars = [['h1i1'], ['h2i0'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1], [1]]
+        expected_cons_consts = [0, 0, 0]
+        expected_cons_ops = ['==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))

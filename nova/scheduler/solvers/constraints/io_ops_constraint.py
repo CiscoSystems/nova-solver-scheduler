@@ -40,19 +40,18 @@ class IoOpsConstraint(constraints.BaseLinearConstraint):
 
         for i in xrange(num_hosts):
             num_io_ops = hosts[i].num_io_ops
-            if max_io_ops <= num_io_ops:
-                for j in xrange(num_instances):
+
+            acceptable_num_instances = int(max_io_ops - num_io_ops)
+            if acceptable_num_instances < 0:
+                acceptable_num_instances = 0
+            if acceptable_num_instances < num_instances:
+                for j in xrange(acceptable_num_instances, num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
-                LOG.debug(_("%(host)s fails I/O ops check: Max IOs per host "
-                            "is set to %(max_io_ops)s"),
-                            {'host': hosts[i],
-                            'max_io_ops': max_io_ops})
-            else:
-                self.variables.append([
-                        var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append([1 for j in range(num_instances)])
-                self.constants.append(max_io_ops - num_io_ops)
-                self.operators.append('<=')
+
+            LOG.debug(_("%(host)s can accept %(num)s requested instances "
+                        "according to IoOpsConstraint."),
+                        {'host': hosts[i],
+                        'num': acceptable_num_instances})

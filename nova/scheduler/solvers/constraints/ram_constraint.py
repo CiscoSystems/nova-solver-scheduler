@@ -43,6 +43,10 @@ class RamConstraint(constraints.BaseLinearConstraint):
         if 'memory_mb' not in instance_type:
             LOG.warn(_("No information about requested instances\' RAM size "
                     "was found, default value (0) is used."))
+        if requested_ram <= 0:
+            LOG.warn(_("RamConstraint is skipped because requested "
+                        "instance RAM size is 0 or invalid."))
+            return
 
         for i in xrange(num_hosts):
             ram_allocation_ratio = self._get_ram_allocation_ratio(
@@ -54,23 +58,17 @@ class RamConstraint(constraints.BaseLinearConstraint):
             used_ram_mb = total_usable_ram_mb - free_ram_mb
             usable_ram = memory_mb_limit - used_ram_mb
 
-            if usable_ram < requested_ram:
-                for j in xrange(num_instances):
+            acceptable_num_instances = int(usable_ram / requested_ram)
+            if acceptable_num_instances < num_instances:
+                for j in xrange(acceptable_num_instances, num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
-                LOG.debug(_("%(host)s does not have %(requested)s MB usable "
-                            "ram, it only has %(usable)s MB usable ram."),
-                            {'host': hosts[i],
-                            'requested': requested_ram,
-                            'usable': usable_ram})
-            else:
-                self.variables.append(
-                        [var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append(
-                        [requested_ram for j in range(num_instances)])
-                self.constants.append(usable_ram)
-                self.operators.append('<=')
+
+            LOG.debug(_("%(host)s can accept %(num)s requested instances "
+                        "according to RamConstraint."),
+                        {'host': hosts[i],
+                        'num': acceptable_num_instances})
 
             hosts[i].limits['memory_mb'] = memory_mb_limit

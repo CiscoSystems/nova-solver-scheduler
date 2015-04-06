@@ -41,12 +41,11 @@ class ServerGroupAffinityConstraint(constraints.BaseLinearConstraint):
 
         if not group_hosts:
             for i in xrange(num_hosts):
-                self.variables.append(
-                            [var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append([1 - num_instances] +
-                                        [1 for j in range(num_instances - 1)])
-                self.constants.append(0)
-                self.operators.append('==')
+                for j in xrange(num_instances - 1):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')
         else:
             for i in xrange(num_hosts):
                 if hosts[i].host not in group_hosts:
@@ -85,9 +84,8 @@ class ServerGroupAntiAffinityConstraint(constraints.BaseLinearConstraint):
                     self.constants.append(0)
                     self.operators.append('==')
             else:
-                self.variables.append(
-                        [var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append(
-                        [1 for j in range(num_instances)])
-                self.constants.append(1)
-                self.operators.append('<=')
+                for j in xrange(1, num_instances):
+                    self.variables.append([var_matrix[i][j]])
+                    self.coefficients.append([1])
+                    self.constants.append(0)
+                    self.operators.append('==')

@@ -53,11 +53,11 @@ class TestValidSolutionConstraint(test.NoDBTestCase):
         fake_hosts = [host1, host2]
 
         expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h0i1', 'h0i2'],
-                ['h1i0', 'h1i1'], ['h1i1', 'h1i2']]
-        expected_cons_coeffs = [[1, -1], [1, -1], [1, -1], [1, -1]]
-        expected_cons_consts = [0, 0, 0, 0]
-        expected_cons_ops = ['>=', '>=', '>=', '>=']
+                ['h0i0', 'h0i1', 'h0i2'],
+                ['h1i0', 'h1i1', 'h1i2']]
+        expected_cons_coeffs = [[1, 1, 1], [1, 1, 1]]
+        expected_cons_consts = [1, 1]
+        expected_cons_ops = ['<=', '<=']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(fake_variables,
                 fake_hosts, fake_filter_properties))

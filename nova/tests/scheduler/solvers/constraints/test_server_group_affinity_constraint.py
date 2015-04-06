@@ -66,9 +66,8 @@ class TestServerGroupAffinityConstraint(test.NoDBTestCase):
                 'instance_uuids': ['fake_uuid_%s' % x for x in range(2)],
                 'num_instances': 2}
 
-        expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h1i0', 'h1i1'], ['h2i0', 'h2i1']]
-        expected_cons_coeffs = [[-1, 1], [-1, 1], [-1, 1]]
+        expected_cons_vars = [['h0i0'], ['h1i0'], ['h2i0']]
+        expected_cons_coeffs = [[1], [1], [1]]
         expected_cons_consts = [0, 0, 0]
         expected_cons_ops = ['==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
@@ -125,10 +124,10 @@ class TestServerGroupAntiAffinityConstraint(test.NoDBTestCase):
                 'num_instances': 2}
 
         expected_cons_vars = [
-                ['h0i0'], ['h0i1'], ['h1i0', 'h1i1'], ['h2i0'], ['h2i1']]
-        expected_cons_coeffs = [[1], [1], [1,1], [1], [1]]
-        expected_cons_consts = [0, 0, 1, 0, 0]
-        expected_cons_ops = ['==', '==', '<=', '==', '==']
+                ['h0i0'], ['h0i1'], ['h1i1'], ['h2i0'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1], [1], [1], [1]]
+        expected_cons_consts = [0, 0, 0, 0, 0]
+        expected_cons_ops = ['==', '==', '==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, fake_filter_properties))
@@ -144,11 +143,10 @@ class TestServerGroupAntiAffinityConstraint(test.NoDBTestCase):
                 'instance_uuids': ['fake_uuid_%s' % x for x in range(2)],
                 'num_instances': 2}
 
-        expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h1i0', 'h1i1'], ['h2i0', 'h2i1']]
-        expected_cons_coeffs = [[1, 1], [1, 1], [1, 1]]
-        expected_cons_consts = [1, 1, 1]
-        expected_cons_ops = ['<=', '<=', '<=']
+        expected_cons_vars = [['h0i1'], ['h1i1'], ['h2i1']]
+        expected_cons_coeffs = [[1], [1], [1]]
+        expected_cons_consts = [0, 0, 0]
+        expected_cons_ops = ['==', '==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, fake_filter_properties))

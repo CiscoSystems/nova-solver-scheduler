@@ -42,9 +42,13 @@ class DiskConstraint(constraints.BaseLinearConstraint):
                                   instance_type.get('swap', 0))
         for inst_type_key in ['root_gb', 'ephemeral_gb', 'swap']:
             if inst_type_key not in instance_type:
-                LOG.warn(_("No information about requested instances\' %s "
-                        "was found, use 0 as the requested %s size.") %
+                LOG.warn(_("Disk information of requested instances\' %s "
+                        "is incomplete, use 0 as the requested %s size.") %
                         (inst_type_key, inst_type_key))
+        if requested_disk <= 0:
+            LOG.warn(_("DiskConstraint is skipped because requested "
+                        "instance disk size is 0 or invalid."))
+            return
 
         for i in xrange(num_hosts):
             # get usable disk
@@ -54,25 +58,18 @@ class DiskConstraint(constraints.BaseLinearConstraint):
             used_disk_mb = total_usable_disk_mb - free_disk_mb
             usable_disk_mb = disk_mb_limit - used_disk_mb
 
-            if usable_disk_mb < requested_disk:
-                for j in xrange(num_instances):
+            acceptable_num_instances = int(usable_disk_mb / requested_disk)
+            if acceptable_num_instances < num_instances:
+                for j in xrange(acceptable_num_instances, num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
 
-                LOG.debug(_("%(host)s does not have %(requested)s MB usable "
-                            "disk, it only has %(usable)s MB usable disk."),
-                            {'host': hosts[i],
-                            'requested': requested_disk,
-                            'usable': usable_disk_mb})
-            else:
-                self.variables.append(
-                            [var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append(
-                    [requested_disk for j in range(num_instances)])
-                self.constants.append(usable_disk_mb)
-                self.operators.append('<=')
+            LOG.debug(_("%(host)s can accept %(num)s requested instances "
+                        "according to DiskConstraint."),
+                        {'host': hosts[i],
+                        'num': acceptable_num_instances})
 
             disk_gb_limit = disk_mb_limit / 1024
             hosts[i].limits['disk_gb'] = disk_gb_limit

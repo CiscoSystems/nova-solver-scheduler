@@ -32,9 +32,8 @@ class ValidSolutionConstraint(constraints.BaseLinearConstraint):
             return
 
         for i in xrange(num_hosts):
-            for j in xrange(num_instances - 1):
-                self.variables.append(
-                        [var_matrix[i][j], var_matrix[i][j + 1]])
-                self.coefficients.append([1, -1])
-                self.constants.append(0)
-                self.operators.append('>=')
+            self.variables.append(
+                    [var_matrix[i][j] for j in xrange(num_instances)])
+            self.coefficients.append([1 for j in xrange(num_instances)])
+            self.constants.append(1)
+            self.operators.append('<=')

@@ -67,6 +67,24 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
                 '<': lambda x, y: x < y}
         return ops.get(op_str)
 
+    def _calculate_host_instance_cost_matrix(self, cost_matrix):
+        new_cost_matrix = cost_matrix
+        if not cost_matrix:
+            return new_cost_matrix
+        first_column = [row[0] for row in cost_matrix]
+        last_column = [row[-1] for row in cost_matrix]
+        if sum(first_column) < sum(last_column):
+            offset = min(first_column)
+            sign = 1
+        else:
+            offset = max(first_column)
+            sign = -1
+        for i in xrange(len(cost_matrix)):
+            for j in xrange(len(cost_matrix[i])):
+                new_cost_matrix[i][j] = sign * (
+                                        (cost_matrix[i][j] - offset) ** 2)
+        return new_cost_matrix
+
     def solve(self, hosts, filter_properties):
         """This method returns a list of tuples - (host, instance_uuid)
         that are returned by the solver. Here the assumption is that
@@ -88,9 +106,18 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
         # Create dictionaries mapping temporary host/instance keys to
         # hosts/instance_uuids. These temorary keys are to be used in the
         # solving process since we need a convention of lp variable names.
-        host_keys = ['Host' + str(i) for i in range(num_hosts)]
+        host_keys = ['Host' + str(i) for i in xrange(num_hosts)]
         host_key_map = dict(zip(host_keys, hosts))
-        instance_keys = ['InstanceOrder' + str(i) for i in range(num_instances)]
+        instance_keys = ['InstanceNum' + str(i) for i in xrange(num_instances)]
+        instance_key_map = dict(
+                zip(instance_keys, xrange(1, num_instances + 1)))
+
+        # this is currently hard-coded and should match variable names
+        host_instance_matrix_idx_map = {}
+        for i in xrange(len(host_keys)):
+            for j in xrange(len(instance_keys)):
+                var_name = 'HI_' + host_keys[i] + '_' + instance_keys[j]
+                host_instance_matrix_idx_map[var_name] = (i, j)
 
         # Create the 'variables' to contain the referenced variables.
         self.variables.populate_variables(host_keys, instance_keys)
@@ -103,20 +130,28 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
 
         # Add costs.
         cost_objects = [cost() for cost in self.cost_classes]
-        cost_coefficients = []
-        cost_variables = []
+        cost_coeff_matrix = [[0 for j in xrange(num_instances)]
+                            for i in xrange(num_hosts)]
         for cost_object in cost_objects:
             var_list, coeff_list = cost_object.get_components(
                                     self.variables, hosts, filter_properties)
-            cost_variables.extend(var_list)
-            cost_coefficients.extend([val * cost_object.cost_multiplier()
-                                                    for val in coeff_list])
-            LOG.debug(_("cost coeffs of %(name)s is: %(value)s") %
-                    {"name": cost_object.__class__.__name__,
-                    "value": coeff_list})
+            for i in xrange(len(var_list)):
+                var = var_list[i]
+                coeff = coeff_list[i]
+                hidx, iidx = host_instance_matrix_idx_map[var.name]
+                cost_coeff_matrix[hidx][iidx] += (
+                                        coeff * cost_object.cost_multiplier())
+        cost_coeff_matrix = self._calculate_host_instance_cost_matrix(
+                                                            cost_coeff_matrix)
+        cost_coeff_array = []
+        for var in var_list:
+            hidx, iidx = host_instance_matrix_idx_map[var.name]
+            cost_coeff_array.append(cost_coeff_matrix[hidx][iidx])
+        cost_variables = var_list
+        cost_coefficients = cost_coeff_array
         if cost_variables:
             prob += (pulp.lpSum([cost_coefficients[i] * cost_variables[i]
-                    for i in range(len(cost_variables))]), "Sum_Costs")
+                    for i in xrange(len(cost_variables))]), "Sum_Costs")
 
         # Add constraints.
         constraint_objects = [constraint()
@@ -128,11 +163,11 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
             LOG.debug(_("coeffs of %(name)s is: %(value)s") %
                     {"name": constraint_object.__class__.__name__,
                     "value": coeffs_list})
-            for i in range(len(ops_list)):
+            for i in xrange(len(ops_list)):
                 operation = self._get_operation(ops_list[i])
                 prob += (
                         operation(pulp.lpSum([coeffs_list[i][j] *
-                        vars_list[i][j] for j in range(len(vars_list[i]))]),
+                        vars_list[i][j] for j in xrange(len(vars_list[i]))]),
                         consts_list[i]), "Costraint_Name_%s" %
                         constraint_object.__class__.__name__ + "_No._%s" % i)
 
@@ -148,8 +183,8 @@ class PulpSolver(scheduler_solver.BaseHostSolver):
                     (host_key, instance_key) = v.name.lstrip('HI').lstrip(
                                                         '_').split('_')
                     if v.varValue == 1:
-                        num_insts_on_host.setdefault(host_key, 0)
-                        num_insts_on_host[host_key] += 1
+                        num_insts_on_host[host_key] = (
+                                            instance_key_map[instance_key])
             instances_iter = iter(instance_uuids)
             for host_key in host_keys:
                 num_insts_on_this_host = num_insts_on_host.get(host_key, 0)

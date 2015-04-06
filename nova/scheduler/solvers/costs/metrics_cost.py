@@ -100,9 +100,11 @@ class MetricsCost(solver_costs.BaseLinearCost):
         var_matrix = variables.host_instance_matrix
         self.variables = [var_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]
+        #self.variables = var_matrix
 
         coeff_matrix = [[(-host_weights[i]) for j in range(num_instances)]
                                                     for i in range(num_hosts)]
         coeff_matrix = cost_utils.normalize_cost_matrix(coeff_matrix)
         self.coefficients = [coeff_matrix[i][j] for i in range(num_hosts)
                                                 for j in range(num_instances)]
+        #self.coefficients = coeff_matrix

@@ -38,42 +38,40 @@ class VcpuConstraint(constraints.BaseLinearConstraint):
         var_matrix = variables.host_instance_matrix
 
         # get requested vcpus
-        instance_type = filter_properties.get('instance_type')
+        instance_type = filter_properties.get('instance_type') or {}
         if not instance_type:
             return
         else:
             instance_vcpus = instance_type['vcpus']
+        if instance_vcpus <= 0:
+            LOG.warn(_("VcpuConstraint is skipped because requested "
+                        "instance vCPU number is 0 or invalid."))
+            return
 
         for i in xrange(num_hosts):
             cpu_allocation_ratio = self._get_cpu_allocation_ratio(
                                                 hosts[i], filter_properties)
             # get available vcpus
             if not hosts[i].vcpus_total:
-                LOG.warn(_("VCPUs of %(host)s not set; assuming CPU "
+                LOG.warn(_("vCPUs of %(host)s not set; assuming CPU "
                             "collection broken."), {'host': hosts[i]})
                 continue
             else:
                 vcpus_total = hosts[i].vcpus_total * cpu_allocation_ratio
                 usable_vcpus = vcpus_total - hosts[i].vcpus_used
 
-            if usable_vcpus < instance_vcpus:
-                for j in xrange(num_instances):
+            acceptable_num_instances = int(usable_vcpus / instance_vcpus)
+            if acceptable_num_instances < num_instances:
+                for j in xrange(acceptable_num_instances, num_instances):
                     self.variables.append([var_matrix[i][j]])
                     self.coefficients.append([1])
                     self.constants.append(0)
                     self.operators.append('==')
-                LOG.debug(_("%(host)s does not have %(requested)s usable "
-                            "vcpus, it only has %(usable)s usable vcpus."),
-                            {'host': hosts[i],
-                            'requested': instance_vcpus,
-                            'usable': usable_vcpus})
-            else:
-                self.variables.append(
-                        [var_matrix[i][j] for j in range(num_instances)])
-                self.coefficients.append(
-                        [instance_vcpus for j in range(num_instances)])
-                self.constants.append(usable_vcpus)
-                self.operators.append('<=')
+
+            LOG.debug(_("%(host)s can accept %(num)s requested instances "
+                        "according to VcpuConstraint."),
+                        {'host': hosts[i],
+                        'num': acceptable_num_instances})
 
             if vcpus_total > 0:
                 hosts[i].limits['vcpu'] = vcpus_total

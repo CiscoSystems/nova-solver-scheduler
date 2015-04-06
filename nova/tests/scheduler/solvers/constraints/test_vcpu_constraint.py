@@ -45,11 +45,10 @@ class TestVcpuConstraint(test.NoDBTestCase):
 
     def test_vcpu_constraint_get_components(self):
         self.flags(cpu_allocation_ratio=1.0)
-        expected_cons_vars = [
-                ['h0i0'], ['h0i1'], ['h1i0', 'h1i1']]
-        expected_cons_coeffs = [[1], [1], [2, 2]]
-        expected_cons_consts = [0, 0, 6]
-        expected_cons_ops = ['==', '==', '<=']
+        expected_cons_vars = [['h0i0'], ['h0i1']]
+        expected_cons_coeffs = [[1], [1]]
+        expected_cons_consts = [0, 0]
+        expected_cons_ops = ['==', '==']
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))
@@ -60,11 +59,10 @@ class TestVcpuConstraint(test.NoDBTestCase):
 
     def test_vcpu_constraint_get_components_oversubscribe(self):
         self.flags(cpu_allocation_ratio=2.0)
-        expected_cons_vars = [
-                ['h0i0', 'h0i1'], ['h1i0', 'h1i1']]
-        expected_cons_coeffs = [[2, 2], [2, 2]]
-        expected_cons_consts = [4, 14]
-        expected_cons_ops = ['<=', '<=']
+        expected_cons_vars = []
+        expected_cons_coeffs = []
+        expected_cons_consts = []
+        expected_cons_ops = []
         cons_vars, cons_coeffs, cons_consts, cons_ops = (
                 self.constraint_cls().get_components(self.fake_variables,
                 self.fake_hosts, self.fake_filter_properties))
