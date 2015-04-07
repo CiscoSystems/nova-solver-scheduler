@@ -41,7 +41,7 @@ Please make sure that you have nova Icehouse already installed on the machine.
       [DEFAULT]
       ...
       scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler  
-      scheduler_host_manager=nova.scheduler.host_manager.SolverSchedulerHostManager
+      scheduler_host_manager=nova.scheduler.solver_scheduler_host_manager.SolverSchedulerHostManager
       ```  
 
     - Restart the nova scheduler.  
@@ -97,7 +97,7 @@ scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler
 #
 
 # The scheduler host manager class to use (string value)
-scheduler_host_manager=nova.scheduler.host_manager.SolverSchedulerHostManager
+scheduler_host_manager=nova.scheduler.solver_scheduler_host_manager.SolverSchedulerHostManager
 
 #
 # Options defined in nova.scheduler.filters.core_filter
