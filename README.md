@@ -3,47 +3,6 @@ Openstack Nova Solver Scheduler
 
 Solver Scheduler is an Openstack Nova Scheduler driver that provides a smarter, complex constraints optimization based resource scheduling in Nova.  It is a pluggable scheduler driver, that can leverage existing complex constraint solvers available in open source such as PULP, CVXOPT, Google OR-TOOLS, etc. It can be easily extended to add complex constraint models for various use cases, written using any of the available open source constraint solving frameworks. 
 
-Key modules
------------
-
-* The new scheduler driver module:
-
-    nova/scheduler/solver_scheduler.py
-
-* A patched version of host_manager module from the master Nova project, with a new method:
-
-    nova/scheduler/host_manager.py
-
-* The code includes a reference implementation of a solver that models the scheduling problem as a Linear Programming model, written using the PULP LP modeling language. It uses a PULP_CBC_CMD, which is a packaged constraint solver, included in the coinor-pulp python package.
-
-    nova/scheduler/solvers/hosts_pulp_solver.py
-
-* The pluggable solvers using coinor-pulp package, where costs functions and linear constraints can be plugged into the solver.
-
-    nova/scheduler/solvers/pluggable_hosts_pulp_solver.py
-
-Additional modules
-------------------
-
-* The cost functions pluggable to solver:
-
-    nova/scheduler/solvers/costs/ram_cost.py  
-    nova/scheduler/solvers/costs/volume_affinity_cost.py  
-
-* The linear constraints that are pluggable to solver:
-
-    nova/scheduler/solvers/linearconstraints/active_host_constraint.py  
-    nova/scheduler/solvers/linearconstraints/all_hosts_constraint.py  
-    nova/scheduler/solvers/linearconstraints/availability_zone_constraint.py  
-    nova/scheduler/solvers/linearconstraints/different_host_constraint.py  
-    nova/scheduler/solvers/linearconstraints/same_host_constraint.py  
-    nova/scheduler/solvers/linearconstraints/io_ops_constraint.py  
-    nova/scheduler/solvers/linearconstraints/max_disk_allocation_constraint.py  
-    nova/scheduler/solvers/linearconstraints/max_ram_allocation_constraint.py  
-    nova/scheduler/solvers/linearconstraints/max_vcpu_allocation_constraint.py  
-    nova/scheduler/solvers/linearconstraints/max_instances_per_host_constraint.py  
-    nova/scheduler/solvers/linearconstraints/non_trivial_solution_constraint.py  
-
 Requirements
 ------------
 
@@ -52,41 +11,36 @@ Requirements
 Installation
 ------------
 
-We provide 2 ways to install the solver-scheduler code. In this section, we will guide you through installing the solver scheduler with the minimum configuration. For instructions of configuring a fully functional solver-scheduler, please check out the next sections.  
+In the current stage, we provide a manual way to install the solver-scheduler code to existing nova directory. In this section, we will also guide you through installing the solver scheduler with the minimum configuration. For instructions of configuring a fully functional solver-scheduler, please check out the next sections.  
+Please make sure that you have nova Icehouse already installed on the machine.  
 
-* **Note:**  
-
-    - Make sure you have an existing installation of **Openstack Icehouse**.  
-
-    - The automatic installation scripts are of **alpha** version, which was tested on **Ubuntu 14.04** and **OpenStack Icehouse** only.  
-
-    - We recommend that you Do backup at least the following files before installation, because they are to be overwritten or modified:  
-        $NOVA_CONFIG_PARENT_DIR/nova.conf  
-        $NOVA_PARENT_DIR/nova/scheduler/host_manager.py  
-        $NOVA_PARENT_DIR/nova/scheduler/filter_scheduler.py  
-        $NOVA_PARENT_DIR/nova/volume/cinder.py  
-        $NOVA_PARENT_DIR/nova/tests/scheduler/fakes.py  
-        $NOVA_PARENT_DIR/nova/tests/scheduler/test_host_manager.py  
-        (replace the $... with actual directory names.)  
 
 * **Prerequisites**  
-    - Please install the python package: coinor.pulp >= 1.0.4  
+    - install the python package: coinor.pulp >= 1.0.4  
+      ```
+      pip install 'coinor.pulp>=1.0.4'
+      ```  
 
 * **Manual Installation**  
 
-    - Make sure you have performed backups properly.  
+    - Clone the repository to your local host where nova-scheduler is run.    
+      ```
+      git clone https://github.com/CiscoSystems/nova-solver-scheduler.git
+      ```
 
-    - Clone the repository to your local host where nova-scheduler is run.  
-
-    - Navigate to the local repository and copy the contents in 'nova' sub-directory to the corresponding places in existing nova, e.g.  
-      ```cp -r $LOCAL_REPOSITORY_DIR/nova $NOVA_PARENT_DIR```  
-      (replace the $... with actual directory name.)  
+    - Navigate to the local repository and copy the contents in 'nova' sub-directory to the corresponding places in existing nova.  
+      ```
+      cp -r nova-solver-scheduler/nova $NOVA_PARENT_DIR
+      ```  
+      (replace the $NOVA_PARENT_DIR with actual directory name. eg. /usr/local/lib/python2.7/site-packages/)  
+      This will add solver-scheduler codes to existing nova directory. The files in nova-solver-scheduler/nova do not overlap with existing nova files, therefore nothing should be overridden. We list below the files and directories which will be copied, just in case you want to double check.
 
     - Update the nova configuration file (e.g. /etc/nova/nova.conf) with the minimum option below. If the option already exists, modify its value, otherwise add it to the config file. Check the "Configurations" section below for a full configuration guide.  
       ```
       [DEFAULT]
       ...
-      scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler
+      scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler  
+      scheduler_host_manager=nova.scheduler.solver_scheduler_host_manager.SolverSchedulerHostManager
       ```  
 
     - Restart the nova scheduler.  
@@ -94,54 +48,28 @@ We provide 2 ways to install the solver-scheduler code. In this section, we will
 
     - Done. The nova-solver-scheduler should be working with a demo configuration.  
 
-* **Automatic Installation**  
-
-    - Make sure you have performed backups properly.  
-
-    - Clone the repository to your local host where nova-scheduler is run.  
-
-    - Navigate to the installation directory and run installation script.  
-      ```
-      cd $LOCAL_REPOSITORY_DIR/installation
-      sudo bash ./install.sh
-      ```  
-      (replace the $... with actual directory name.)  
-
-    - Done. The installation code should setup the solver-scheduler with the minimum configuration below. Check the "Configurations" section for a full configuration guide.  
-      ```
-      [DEFAULT]
-      ...
-      scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler
-      ```  
-
 * **Uninstallation**  
 
-    - If you need to switch to other scheduler, simply open the nova configuration file and edit the option ```scheduler_driver```  (the default: ```scheduler_driver=nova.scheduler.filter_scheduler.FilterScheduler```), then restart nova-scheduler.  
+    - If you need to switch to other scheduler, simply open the nova configuration file and edit the option ```scheduler_driver``` and ```scheduler_host_manager```, then restart nova-scheduler.  e.g., 
+    ```
+    scheduler_driver=nova.scheduler.filter_scheduler.FilterScheduler
+    scheduler_host_manager=nova.scheduler.host_manager.HostManager
+    ```  
 
-    - There is no need to remove the solver-scheduler code after installation since it is supposed to be fully compatible with the default nova scheduler. However, in case you really want to restore the code, you can either do it manually with your backup, or use the uninstallation script provided in the installation directory.  
-      ```
-      cd $LOCAL_REPOSITORY_DIR/installation
-      sudo bash ./uninstall.sh
-      ```  
-      (replace the $... with actual directory name.)  
+    - To remove all codes of solver-scheduler, manually delete the files/directories listed below from the nova directory.  
 
     - Please remember to restart the nova-scheduler service everytime when changes are made in the code or config file.  
 
-* **Troubleshooting**  
+* **List of installed files**  
 
-    In case the automatic installation/uninstallation process is not complete, please check the followings:  
-
-    - Make sure your OpenStack version is Icehouse.  
-
-    - Check the variables in the beginning of the install.sh/uninstall.sh scripts. Your installation directories may be different from the default values we provide.  
-
-    - The installation code will automatically backup the related codes to:  
-      $NOVA_PARENT_DIR/nova/.solver-scheduler-installation-backup  
-      Please do not make changes to the backup if you do not have to. If you encounter problems during installation, you can always find the backup files in this directory.  
-
-    - The automatic uninstallation script can only work when you used automatic installation beforehand. If you installed manually, please also uninstall manually (though there is no need to actually "uninstall").  
-
-    - In case the automatic installation does not work, try to install manually.  
+    nova/scheduler/solvers (directory)  
+    nova/scheduler/solver_scheduler.py  
+    nova/scheduler/solver_scheduler_host_manager.py  
+    nova/tests/scheduler/solvers (directory)  
+    nova/tests/scheduler/solver_scheduler_fakes.py  
+    nova/tests/scheduler/test_solver_scheduler.py  
+    nova/tests/scheduler/test_solver_scheduler_host_manager.py  
+    nova/solver_scheduler_exception.py  
 
 Configurations
 --------------
@@ -149,7 +77,6 @@ Configurations
 * This is a (default) configuration sample for the solver-scheduler. Please add/modify these options in /etc/nova/nova.conf.
 * Note:
     - Please carefully make sure that options in the configuration file are not duplicated. If an option name already exists, modify its value instead of adding a new one of the same name.
-    - The solver class 'nova.scheduler.solvers.hosts_pulp_solver.HostsPulpSolver' is used by default in installation for demo purpose. It is self-inclusive and non-pluggable for costs and constraints. Please switch to 'nova.scheduler.solvers.pluggable_hosts_pulp_solver.HostsPulpSolver' for a fully functional (pluggable) solver.
     - Please refer to the 'Configuration Details' section below for proper configuration and usage of costs and constraints.
 
 ```
@@ -163,6 +90,13 @@ Configurations
 
 # Default driver to use for the scheduler (string value)
 scheduler_driver=nova.scheduler.solver_scheduler.ConstraintSolverScheduler
+
+#
+# Options defined in nova.scheduler.driver
+#
+
+# The scheduler host manager class to use (string value)
+scheduler_host_manager=nova.scheduler.solver_scheduler_host_manager.SolverSchedulerHostManager
 
 #
 # Options defined in nova.scheduler.filters.core_filter
@@ -192,14 +126,6 @@ disk_allocation_ratio=1.0
 max_instances_per_host=50
 
 #
-# Options defined in nova.scheduler.filters.io_ops_filter
-#
-
-# Ignore hosts that have too many
-# builds/resizes/snaps/migrations. (integer value)
-max_io_ops_per_host=8
-
-#
 # Options defined in nova.scheduler.filters.ram_filter
 #
 
@@ -211,28 +137,20 @@ max_io_ops_per_host=8
 ram_allocation_ratio=1.5
 
 #
+# Options defined in nova.scheduler.filters.io_ops_filter
+#
+
+# Ignore hosts that have too many
+# builds/resizes/snaps/migrations. (integer value)
+max_io_ops_per_host=8
+
+#
 # Options defined in nova.scheduler.weights.ram
 #
 
 # Multiplier used for weighing ram.  Negative numbers mean to
 # stack vs spread. (floating point value)
 ram_weight_multiplier=1.0
-
-#
-# Options defined in nova.volume.cinder
-#
-
-# Keystone Cinder account username (string value)
-cinder_admin_user=<None>
-
-# Keystone Cinder account password (string value)
-cinder_admin_password=<None>
-
-# Keystone Cinder account tenant name (string value)
-cinder_admin_tenant_name=service
-
-# Complete public Identity API endpoint (string value)
-cinder_auth_uri=<None>
 
 
 [solver_scheduler]
@@ -244,56 +162,82 @@ cinder_auth_uri=<None>
 # The pluggable solver implementation to use. By default, a
 # reference solver implementation is included that models the
 # problem as a Linear Programming (LP) problem using PULP.
-# To use a fully functional (pluggable) solver, set the option as
-# "nova.scheduler.solvers.pluggable_hosts_pulp_solver.HostsPulpSolver"
 # (string value)
-scheduler_host_solver=nova.scheduler.solvers.pluggable_hosts_pulp_solver.HostsPulpSolver
+scheduler_host_solver=nova.scheduler.solvers.pulp_solver.PulpSolver
+
+# This fallback scheduler will be used automatically if the
+# solver scheduler fails to get a solution. (string value)
+fallback_scheduler=nova.scheduler.filter_scheduler.FilterScheduler
+
+# Whether to use a fallback scheduler in case the solver
+# scheduler fails to get a solution because of a solver
+# failure. (boolean value)
+enable_fallback_scheduler=true
 
 
 #
 # Options defined in nova.scheduler.solvers
 #
 
-# Which constraints to use in scheduler solver (list value)
-scheduler_solver_constraints=ActiveHostConstraint, NonTrivialSolutionConstraint
-
-# Assign weight for each cost (list value)
-scheduler_solver_cost_weights=RamCost:1.0
-
-# Which cost matrices to use in the scheduler solver.
-# (list value)
+# Which cost matrices to use in the scheduler solver. (list
+# value)
 scheduler_solver_costs=RamCost
+
+# Which constraints to use in scheduler solver (list value)
+scheduler_solver_constraints=ActiveHostsConstraint,NonTrivialSolutionConstraint,ValidSolutionConstraint
+
+
+#
+# Options defined in nova.scheduler.solvers.costs.metrics_cost
+#
+
+# Multiplier used for metrics costs. (floating point value)
+metrics_cost_multiplier=1.0
+
+
+#
+# Options defined in nova.scheduler.solvers.costs.ram_cost
+#
+
+# Multiplier used for ram costs. Negative numbers mean to
+# stack vs spread. (floating point value)
+ram_cost_multiplier=1.0
+
+
+#
+# Options defined in nova.scheduler.solvers.pulp_solver
+#
+
+# How much time in seconds is allowed for solvers to solve the
+# scheduling problem. If this time limit is exceeded the
+# solver will be stopped. (integer value)
+pulp_solver_timeout_seconds=20
+
+
+[metrics]
+
+#
+# Options defined in nova.scheduler.solvers.costs.metrics_cost
+#
+
+# If any one of the metrics set by weight_setting is
+# unavailable, the metric weight of the host will be set to
+# (minw + (maxw - minw) * m), where maxw and minw are the max
+# and min weights among all hosts, and m is the multiplier.
+# (floating point value)
+weight_multiplier_of_unavailable=-1.0
+
+...
 
 ```
 
 Configuration Details
 ---------------------
 
-* Available costs  
+Here we list a few constraints that can be configured, we will update this part and add more details soon.  
+To enable them, edit the configuration option 'scheduler_solver_constraints' under the '[solver_scheduler]' section of the nova configuration file.  
 
-    - **RamCost**  
-        Help to balance (or stack) ram usage of hosts.  
-        The following option should be set in configuration when using this cost:  
-        ```
-        ram_weight_multiplier = <a real number>
-        ram_allocation_ratio = <a float value>
-        ```  
-        set the multiplier to negative number for balanced ram usage,  
-        set the multiplier to positive number for stacked ram usage.  
-    
-    - **VolumeAffinityCost**  
-        Help to place instances at the same host as a specific volume, if possible.  
-        In order to use this cost, you need to pass a hint to the scheduler on booting a server.  
-        ```nova boot ... --hint affinity_volume_id=<id of the affinity volume> ...```  
-        You also need to have the following options set in the '[DEFAULT]' section of the configuration.  
-        ```
-        cinder_admin_user=<cinder username>
-        cinder_admin_password=<cinder password>
-        cinder_admin_tenant_name=<cinder tenant name>
-        cinder_auth_uri=<the identity api endpoint>
-        ```  
-
-* Available linear constraints  
+* **Constraint options**  
 
     - **ActiveHostConstraint**  
         By enabling this constraint, only enabled and operational hosts are allowed to be selected.  
@@ -301,105 +245,50 @@ Configuration Details
     
     - **NonTrivialSolutionConstraint**  
         The purpose of this constraint is to avoid trivial solution (i.e. instances placed nowhere).  
-        Normally this constraint should always be enabled.
+        This constraint must always be enabled to ensure solution is meaningful.  
+
+    - **ValidSolutionConstraint**  
+        This makes sure that the solution generated by solver scheduler is valid to its mathematic formulations.  
+        This constraint must always be enabled to ensure solution is valid.  
     
-    - **MaxRamAllocationPerHostConstraint**  
+    - **RamConstraint**  
         Cap the virtual ram allocation of hosts.  
-        The following option should be set in configuration when using this constraint:  
-        ```ram_allocation_ratio = <a positive real number>``` (virtual-to-physical ram allocation ratio, if >1.0 then over-allocation is allowed.)  
+        The following option should be set in the '[DEFAULT]' section of nova configuration file if this constraint is used:  
+        ```ram_allocation_ratio=<a positive real number>``` (virtual-to-physical ram allocation ratio, if >1.0 then over-allocation is allowed.)  
     
-    - **MaxDiskAllocationPerHostConstraint**  
+    - **DiskConstraint**  
         Cap the virtual disk allocation of hosts.  
-        The following option should be set in configuration when using this constraint:  
-        ```disk_allocation_ratio = <a positive real number>``` (virtual-to-physical disk allocation ratio, if >1.0 then over-allocation is allowed.)  
+        The following option should be set in the '[DEFAULT]' section of nova configuration file if this constraint is used:  
+        ```disk_allocation_ratio=<a positive real number>``` (virtual-to-physical disk allocation ratio, if >1.0 then over-allocation is allowed.)  
     
-    - **MaxVcpuAllocationPerHostConstraint**  
+    - **VcpuConstraint**  
         Cap the vcpu allocation of hosts.  
-        The following option should be set in configuration when using this constraint:  
-        ```cpu_allocation_ratio = <a positive real number>``` (virtual-to-physical cpu allocation ratio, if >1.0 then over-allocation is allowed.)  
+        The following option should be set in the '[DEFAULT]' section of nova configuration file if this constraint is used:  
+        ```cpu_allocation_ratio=<a positive real number>``` (virtual-to-physical cpu allocation ratio, if >1.0 then over-allocation is allowed.)  
     
     - **NumInstancesPerHostConstraint**  
         Specify the maximum number of instances that can be placed in each host.  
-        The following option is expected in the configuration:  
-        ```max_instances_per_host = <a positive integer>```  
+        The following option should be set in the '[DEFAULT]' section of nova configuration file if this constraint is used:  
+        ```max_instances_per_host=<a positive integer>```  
     
     - **DifferentHostConstraint**  
         Force instances to be placed at different hosts as specified instance(s).  
-        The following scheduler hint is expected when using this constraint:  
-        ```different_host = <a (list of) instance uuid(s)>```  
+        The following scheduler hint is expected in the server booting command when using this constraint:  
+        ```different_host=<a (list of) instance uuid(s)>```  
     
     - **SameHostConstraint**  
         Force instances to be placed at same hosts as specified instance(s).  
-        The following scheduler hint is expected when using this constraint:  
-        ```same_host = <a (list) of instance uuid(s)>```  
-    
-    - **AvailablilityZoneConstraint**  
-        Select hosts belongong to an availability zone.  
-        The following option should be set in configuration when using this constraint:  
-        ```default_availability_zone = <availability zone>```  
-    
-    - **IoOpsConstraint**  
-        Ensure the concurrent I/O operations number of selected hosts are within a threshold.  
-        The following option should be set in configuration when using this constraint:  
-        ```max_io_ops_per_host = <a positive number>```
+        The following scheduler hint is expected in the server booting command when using this constraint:  
+        ```same_host=<a (list) of instance uuid(s)>```  
 
-Examples
---------
+    - **ServerGroupAffinityConstraint**  
+        To use this constraint, you must first have a server group with policy 'affinity' specified. The scheduler will make sure all servers in the group are scheduled in a same host.  
+        The following scheduler hint is expected in the server booting command when using this constraint:  
+        ```group=<uuid of the server group this new server will belong to>```  
 
-This is an example usage for creating VMs with volume affinity using the solver scheduler.
+    - **ServerGroupAntiAffinityConstraint**  
+        To use this constraint, you must first have a server group with polity 'anti-affinity' specified. The scheduler will make sure all servers in the group are scheduled in different hosts.  
+        The following scheduler hint is expected in the server booting command when using this constraint:  
+        ```group=<uuid of the server group this new server belongs to>```  
 
-* Install the solver scheduler.
-
-* Update the nova.conf with following options:
-
-```
-[DEFAULT]
-...
-# Default driver to use for the scheduler
-scheduler_driver = nova.scheduler.solver_scheduler.ConstraintSolverScheduler
-
-# Virtual-to-physical disk allocation ratio
-disk_allocation_ratio = 1.0
-
-# Virtual-to-physical ram allocation ratio
-ram_allocation_ratio = 1.5
-
-# Keystone Cinder account username (string value)
-cinder_admin_user=<cinder username>
-
-# Keystone Cinder account password (string value)
-cinder_admin_password=<cinder password>
-
-# Keystone Cinder account tenant name (string value)
-cinder_admin_tenant_name=<cinder tenant name>
-
-# Complete public Identity API endpoint (string value)
-cinder_auth_uri=<the identity api endpoint, e.g. "http://controller:5000/v2.0">
-
-
-[solver_scheduler]
-
-# Default solver to use for the solver scheduler
-scheduler_host_solver = nova.scheduler.solvers.pluggable_hosts_pulp_solver.HostsPulpSolver
-
-# Cost functions to use in the linear solver
-scheduler_solver_costs = VolumeAffinityCost
-
-# Weight of each cost (every cost function used should be given a weight.)
-scheduler_solver_cost_weights = VolumeAffinityCost:1.0
-
-# Constraints used in the solver
-scheduler_solver_constraints = ActiveHostConstraint, NonTrivialSolutionConstraint, MaxDiskAllocationPerHostConstraint, MaxRamAllocationPerHostConstraint
-
-```
-
-* Restart nova-scheduler and then do the followings:
-
-* Create multiple volumes at different hosts
-
-* Run the following command to boot a new instance. (The id of a volume you want to use should be provided as scheduler hint.)
-```
-nova boot --image=<image-id> --flavor=<flavor-id> --hint affinity_volume_id=<volume-id> <server-name>
-```
-
-* The instance should be created at the same host as the chosen volume as long as the host is active and has enough resources.
+    TBD......
