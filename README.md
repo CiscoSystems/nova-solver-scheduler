@@ -23,10 +23,9 @@ Please make sure that you have nova Icehouse already installed on the machine.
 
 * **Manual Installation**  
 
-    - Clone the repository to your local host where nova-scheduler is run, and switch to the "dev-mvp1" branch.    
+    - Clone the repository to your local host where nova-scheduler is run.    
       ```
       git clone https://github.com/CiscoSystems/nova-solver-scheduler.git
-      git checkout -b dev-mvp1 origin/dev-mvp1
       ```
 
     - Navigate to the local repository and copy the contents in 'nova' sub-directory to the corresponding places in existing nova.  
