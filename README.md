@@ -1,6 +1,8 @@
 Openstack Nova Solver Scheduler
 ===============================
 
+## NOTE: The repository of Nova Solver Scheduler has been moved to [here](https://github.com/openstack/nova-solver-scheduler). Please go to the new location for the latest codes of this project. The codes here are not latest and not being maintained at the moment.
+
 Solver Scheduler is an Openstack Nova Scheduler driver that provides a smarter, complex constraints optimization based resource scheduling in Nova.  It is a pluggable scheduler driver, that can leverage existing complex constraint solvers available in open source such as PULP, CVXOPT, Google OR-TOOLS, etc. It can be easily extended to add complex constraint models for various use cases, written using any of the available open source constraint solving frameworks. 
 
 Requirements
